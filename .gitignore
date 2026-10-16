@@ -6,6 +6,10 @@ qemu_output.log
 ai_rpi2350/model/calib/
 ai_rpi2350/model/sine_model/
 ai_rpi2350/model/sine_model.keras
+script/calib/
+script/sine_model/
+script/sine_model.keras
+script/model_int8.tflite
 
 # Archives / session metadata
 script.zip
