@@ -351,6 +351,14 @@ x_value: 6.234, y_value: -0.039
 [qemu] sine inference verified on qemu_x86
 ```
 
+The runner feeds QEMU's stdin from `/dev/null` on purpose: under `timeout`
+the child runs in a *background* process group, and a QEMU that reads the
+controlling TTY would be stopped by SIGTTIN before printing its first
+serial byte -- the console looks dead and the smoke test fails with
+"no inference output found" (it only happens in an interactive terminal;
+piped stdin masks the problem). Output still streams live to the
+terminal; stop early with `Ctrl-C`, or let the 30 s timeout end the run.
+
 The `y` values trace `sin(x)`: up to +1 near `x = 1.57`, down to -1 near
 `x = 4.71`, back to 0 at `2*pi`. (~200k inferences in a 20-second run.)
 

@@ -123,3 +123,10 @@ next steps (CMSIS-NN kernels, sensors, networking).
    (VID 2E8A). Cost: +11.4 KB flash, +8.9 KB RAM; firmware 67.4 KB flash /
    20.4 KB RAM. Legacy-USB-stack deprecation warnings during build are expected
    (same as in the inspiring sample).
+5. `make qemu` smoke-test quirk fixed: `timeout` runs the child in a background
+   process group, so QEMU reading the controlling TTY raises SIGTTIN and stops
+   before its first serial byte — the test passed with piped stdin (CI/agent)
+   but showed an empty console in an interactive terminal. Fix: run
+   `west build -t run < /dev/null` (output still streams via tee; Ctrl-C or the
+   timeout stop the run). `timeout --foreground` was rejected: the orphaned
+   QEMU then holds the tee pipe open and make hangs.

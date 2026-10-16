@@ -72,8 +72,12 @@ build: $(MODEL_CC)
 # forever); the grep proves real inferences happened.
 qemu: $(MODEL_CC)
 	$(WEST) build -b $(QEMU_BOARD) -d $(QEMU_BUILD) -p $(PRISTINE) $(APP_DIR)
+	# stdin from /dev/null: under `timeout` the child runs in a background
+	# process group, so QEMU reading the controlling TTY would raise SIGTTIN
+	# and stop instantly (empty console). Output still streams via tee; stop
+	# early with Ctrl-C or let the timeout kill the whole process group.
 	-@(cd $(WEST_TOPDIR) && timeout --kill-after=2 $(QEMU_TIMEOUT) \
-		west build -d $(QEMU_BUILD) -t run) 2>&1 | tee $(APP_DIR)/qemu_output.log
+		west build -d $(QEMU_BUILD) -t run < /dev/null) 2>&1 | tee $(APP_DIR)/qemu_output.log
 	@pkill -f "qemu[-]system.*$(notdir $(QEMU_BUILD))" 2>/dev/null || true
 	@grep -m1 "x_value:" $(APP_DIR)/qemu_output.log \
 		&& echo "[qemu] sine inference verified on $(QEMU_BOARD)" \
