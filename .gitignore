@@ -1,0 +1,16 @@
+# Build outputs (west/cmake trees per board)
+ai_rpi2350/build_*/
+qemu_output.log
+
+# Generated training artifacts — regenerate with `make model` / `make header`
+ai_rpi2350/model/calib/
+ai_rpi2350/model/sine_model/
+ai_rpi2350/model/sine_model.keras
+
+# Archives / session metadata
+script.zip
+this_session_id.txt
+
+# Python
+__pycache__/
+*.pyc
