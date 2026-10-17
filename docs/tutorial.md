@@ -84,7 +84,7 @@ The Pico 2 **W** (with the Infineon/Cypress CYW43439 radio) is selected via a
 board *variant*:
 
 ```
-rpi_pico2/rp2350a/m33/w     # Pico 2 W: RP2350, Cortex-M33 core, WiFi variant
+rpi_pico2/rp2350a/m33_0/w     # Pico 2 W: RP2350, Cortex-M33 core, WiFi variant
 rpi_pico2/rp2350a/m33       # plain Pico 2 (no radio)
 ```
 
@@ -274,8 +274,8 @@ ai_rpi2350/
 +-- prj.conf           # CONFIG_CPP, CONFIG_TENSORFLOW_LITE_MICRO, float printf
 +-- Makefile           # model / header / build / qemu / flash_mcu / mcu_monitor
 +-- boards/            # board-specific; auto-applied for rpi_pico2/.../w only
-|   +-- rpi_pico2_rp2350a_m33_w.overlay   # USB CDC ACM console (devicetree)
-|   \-- rpi_pico2_rp2350a_m33_w.conf      # USB device stack + CDC ACM (Kconfig)
+|   +-- rpi_pico2_rp2350a_m33_0_w.overlay   # USB CDC ACM console (devicetree)
+|   \-- rpi_pico2_rp2350a_m33_0_w.conf      # USB device stack + CDC ACM (Kconfig)
 +-- src/
 |   +-- main.cpp               # interpreter, resolver, int8 I/O, printout
 |   +-- sine_model.h           # extern decls (generated)
@@ -369,7 +369,7 @@ The `y` values trace `sin(x)`: up to +1 near `x = 1.57`, down to -1 near
 ```
 workon zephyr_rtos
 cd /home/aimlrn/ai_mcu/ai_rpi2350
-make build         # BOARD defaults to rpi_pico2/rp2350a/m33/w
+make build         # BOARD defaults to rpi_pico2/rp2350a/m33_0/w
 ```
 
 Result from this build:
@@ -395,19 +395,27 @@ storage device `RPI-RP2`:
 make flash_mcu      # west flash -r uf2 (uses picotool); `make flash` is an alias
 ```
 
-The target refuses to run if `build_rpi_pico2_rp2350a_m33_w/zephyr.uf2` is
+The target refuses to run if `build_rpi_pico2_rp2350a_m33_0_w/zephyr.uf2` is
 missing (run `make build` first), reminds you about BOOTSEL, writes the UF2,
 and the board reboots straight into the inference firmware.
 
 ### How the USB console is wired (board-specific)
 
 Two small files, auto-applied by Zephyr **only** when building for
-`rpi_pico2/rp2350a/m33/w` (the `qemu_x86` smoke test keeps its regular
+`rpi_pico2/rp2350a/m33_0/w` (the `qemu_x86` smoke test keeps its regular
 console). They take the USB CDC ACM part of
 `zephyr/samples/basic/pico2w_gpio16_blinky/app.overlay` and its `prj.conf`,
-nothing else (the GPIO16 LED / buzzer nodes were dropped):
+nothing else (the GPIO16 LED / buzzer nodes were dropped).
 
-`boards/rpi_pico2_rp2350a_m33_w.overlay` (devicetree):
+Note the `_m33_0_` in the fragment names: the RP2350 is dual-core, and since
+the upstream qualification rework (Oct 2026) the canonical board id is
+`rpi_pico2/rp2350a/m33_0/w` -- previously `m33/w`, which still resolves via
+an alias for builds but *not* for fragment matching. Board-scoped files are
+matched against the canonical id and fail silently when it changes: the
+symptom is a missing USB CDC console and a ~11 KB smaller firmware, so after
+a Zephyr update check `CONFIG_USB_CDC_ACM=y` in `build_*/zephyr/.config`.
+
+`boards/rpi_pico2_rp2350a_m33_0_w.overlay` (devicetree):
 
 ```dts
 / {
@@ -425,7 +433,7 @@ nothing else (the GPIO16 LED / buzzer nodes were dropped):
 };
 ```
 
-`boards/rpi_pico2_rp2350a_m33_w.conf` (Kconfig):
+`boards/rpi_pico2_rp2350a_m33_0_w.conf` (Kconfig):
 
 ```
 CONFIG_USB_DEVICE_STACK=y
@@ -565,7 +573,7 @@ honours the submanifest and ignores the shadowed entry.
     +-- CMakeLists.txt
     +-- prj.conf
     +-- Makefile
-    +-- boards/{rpi_pico2_rp2350a_m33_w.overlay, rpi_pico2_rp2350a_m33_w.conf}
+    +-- boards/{rpi_pico2_rp2350a_m33_0_w.overlay, rpi_pico2_rp2350a_m33_0_w.conf}
     +-- src/{main.cpp, sine_model.h, sine_model_data.cc}
     \-- model/{generate_model.py, tflite_to_cc.py, model_int8.tflite, calib/, sine_model*}
 ```
@@ -583,7 +591,7 @@ zephyrproject/zephyr/submanifests/optional.yaml     # path: modules/tflite-micro
 |---|---|
 | `make model` | train + int8-quantize (machine_learn venv python) |
 | `make header` | embed `.tflite` into `src/sine_model_data.cc` |
-| `make build` | west build for `rpi_pico2/rp2350a/m33/w` -> `zephyr.uf2` |
+| `make build` | west build for `rpi_pico2/rp2350a/m33_0/w` -> `zephyr.uf2` |
 | `make qemu` | build + run on `qemu_x86`, verify console output |
 | `make flash_mcu` | `west flash -r uf2` (BOOTSEL mode; alias: `make flash`) |
 | `make mcu_monitor` | serial console, `SERIAL_PORT=/dev/ttyACM0` `SERIAL_BAUD=115200` (minicom/picocom/screen) |

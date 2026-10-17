@@ -23,7 +23,7 @@ Update this plan with the changes with whatever is needed (you may need to creat
 # ============================================================================
 # STATUS (added after execution — 2026-10-16, full record in IMPLEMENTATION_PLAN.md)
 # ============================================================================
-[DONE] MCU: Raspberry Pi Pico 2 W — board qualifier rpi_pico2/rp2350a/m33/w
+[DONE] MCU: Raspberry Pi Pico 2 W — board qualifier rpi_pico2/rp2350a/m33_0/w
        (matches the working command in zephyr/AGO_NOTES.txt).
 [DONE] Tutorial: docs/tutorial.md + docs/tutorial.pdf (9 pages, pandoc+pdflatex).
 [DONE] Zephyr project implemented under /home/aimlrn/ai_mcu/ai_rpi2350
@@ -45,12 +45,12 @@ Update this plan with the changes with whatever is needed (you may need to creat
        3464-byte int8 flatbuffer, quantized MSE 0.00017; ops: FULLY_CONNECTED.
        Embedded via model/tflite_to_cc.py into src/sine_model_data.cc.
 [DONE] Verified: qemu_x86 smoke test passes (sine sweep on console, ~10k
-       inferences/s); rpi_pico2/rp2350a/m33/w build passes — zephyr.uf2
+       inferences/s); rpi_pico2/rp2350a/m33_0/w build passes — zephyr.uf2
        (112 KB), FLASH 55.9 KB (1.33% of 4 MB), RAM 11.5 KB (2.17% of 520 KB),
        arena 1060 B. Flash with `make flash_mcu` (BOOTSEL; alias: make flash),
        watch the console with `make mcu_monitor` (SERIAL_PORT/SERIAL_BAUD
        overridable, defaults /dev/ttyACM0 @115200).
-[ADD]  USB CDC ACM console (user request): boards/rpi_pico2_rp2350a_m33_w
+[ADD]  USB CDC ACM console (user request): boards/rpi_pico2_rp2350a_m33_0_w
        {.overlay,.conf} — USB-CDC-only part of the pico2w_gpio16_blinky
        sample applied board-specifically; Pico enumerates as /dev/ttyACM*
        (VID 2E8A) natively, no UART adapter needed. Firmware now 67.4 KB
@@ -65,3 +65,10 @@ Update this plan with the changes with whatever is needed (you may need to creat
 
 
 
+[ADD]  Upstream Zephyr moved (rebased onto origin/main, Oct 2026): tflite-micro
+       pin bumped to 43b2a106 (kept path modules/tflite-micro via resolved
+       submanifests/optional.yaml conflict), all west modules synced
+       (west update), and the board qualifier renamed m33/w -> m33_0/w:
+       boards fragments renamed rpi_pico2_rp2350a_m33_0_w.{overlay,conf},
+       Makefile BOARD = rpi_pico2/rp2350a/m33_0/w. Firmware 68.1 KB flash /
+       20.6 KB RAM with USB CDC; qemu smoke test green.

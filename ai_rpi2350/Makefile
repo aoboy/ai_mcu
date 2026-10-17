@@ -9,13 +9,13 @@
 #   workon machine_learn        # TF (CPU) for the training step   (make model)
 #   make model header           # train -> int8 .tflite -> C array
 #   workon zephyr_rtos          # west + Zephyr SDK for firmware   (make build)
-#   make build                  # -> build_rpi_pico2_rp2350a_m33_w/zephyr.uf2
+#   make build                  # -> build_rpi_pico2_rp2350a_m33_0_w/zephyr.uf2
 #   make qemu                   # smoke-test inference on qemu_x86
 #   make flash_mcu              # west flash -r uf2 (board in BOOTSEL mode)
 #   make mcu_monitor            # serial console (minicom/picocom/screen)
 #
 # Override examples:
-#   make build BOARD=rpi_pico2/rp2350a/m33        (Pico 2, no WiFi radio)
+#   make build BOARD=rpi_pico2/rp2350a/m33_0        (Pico 2, no WiFi radio)
 #   make build BUILD_DIR=/tmp/tflm_build PRISTINE=always
 # =============================================================================
 
@@ -23,7 +23,7 @@ APP_DIR      := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 WEST_TOPDIR  ?= /home/agonga/zephyrproject
 ML_PYTHON    ?= /home/agonga/.virtualenvs/machine_learn/bin/python
 
-BOARD        ?= rpi_pico2/rp2350a/m33/w
+BOARD        ?= rpi_pico2/rp2350a/m33_0/w
 PRISTINE     ?= auto
 BUILD_DIR    ?= $(APP_DIR)/build_$(subst /,_,$(BOARD))
 QEMU_BOARD   ?= qemu_x86

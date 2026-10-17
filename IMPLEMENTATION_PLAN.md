@@ -10,7 +10,7 @@ decisions taken while executing it, and the deviations from the original text.
 | West workspace (topdir) | `/home/agonga/zephyrproject` |
 | Zephyr | main, `v4.4.0-9527-g8f3807f5578` |
 | Zephyr SDK | `/home/agonga/zephyr-sdk-1.0.1` |
-| Board (Pico 2 W) | `rpi_pico2/rp2350a/m33/w` (from `zephyr/AGO_NOTES.txt`) |
+| Board (Pico 2 W) | `rpi_pico2/rp2350a/m33_0/w` (from `zephyr/AGO_NOTES.txt`) |
 | tflite-micro module | west project `tflite-micro`, fork `zephyrproject-rtos/tflite-micro` @ `fcc760af` |
 | Module glue (CMake+Kconfig) | in-tree: `zephyr/modules/tflite-micro/{CMakeLists.txt,Kconfig}` — auto-discovered, defines `CONFIG_TENSORFLOW_LITE_MICRO` |
 | Flash / serial | `west flash -r uf2`, `minicom -D /dev/ttyAC0 -b115200` |
@@ -52,8 +52,8 @@ ai_rpi2350/
 ├── prj.conf                  # CONFIG_CPP, CONFIG_TENSORFLOW_LITE_MICRO, float printf
 ├── Makefile                  # model / header / build / qemu / flash_mcu / mcu_monitor
 ├── boards/                   # board-specific, auto-applied for rpi_pico2/.../w only
-│   ├── rpi_pico2_rp2350a_m33_w.overlay  # USB CDC ACM console (devicetree)
-│   └── rpi_pico2_rp2350a_m33_w.conf     # USB device stack + CDC ACM (Kconfig)
+│   ├── rpi_pico2_rp2350a_m33_0_w.overlay  # USB CDC ACM console (devicetree)
+│   └── rpi_pico2_rp2350a_m33_0_w.conf     # USB device stack + CDC ACM (Kconfig)
 ├── src/
 │   ├── main.cpp              # MicroInterpreter + MicroMutableOpResolver, int8 I/O
 │   ├── sine_model.h          # extern declarations for the embedded model
@@ -89,7 +89,7 @@ which targets this exact module/glue):
 1. **QEMU smoke test** (`qemu_x86`): proves model + interpreter + console
    output end-to-end without hardware. Console must show the `x_value: …,
    y_value: …` sine pattern.
-2. **Pico 2 W build** (`rpi_pico2/rp2350a/m33/w`, pristine): produces
+2. **Pico 2 W build** (`rpi_pico2/rp2350a/m33_0/w`, pristine): produces
    `zephyr.uf2` + RAM/Flash usage. Flashing is left to the user
    (`make flash_mcu`, alias `make flash` -> BOOTSEL UF2 via `west flash -r uf2`;
    `make mcu_monitor` -> serial console, minicom/picocom/screen, defaults
@@ -118,7 +118,7 @@ next steps (CMSIS-NN kernels, sensors, networking).
 4. USB CDC ACM console added on top of the base project (user request): the
    USB-CDC-only part of `zephyr/samples/basic/pico2w_gpio16_blinky/app.overlay`
    + its `prj.conf` USB options, applied as board-scoped files
-   (`boards/rpi_pico2_rp2350a_m33_w.{overlay,conf}`) so the qemu_x86 smoke test
+   (`boards/rpi_pico2_rp2350a_m33_0_w.{overlay,conf}`) so the qemu_x86 smoke test
    keeps its regular console. Console now enumerates natively as `/dev/ttyACM*`
    (VID 2E8A). Cost: +11.4 KB flash, +8.9 KB RAM; firmware 67.4 KB flash /
    20.4 KB RAM. Legacy-USB-stack deprecation warnings during build are expected
@@ -130,3 +130,15 @@ next steps (CMSIS-NN kernels, sensors, networking).
    `west build -t run < /dev/null` (output still streams via tee; Ctrl-C or the
    timeout stop the run). `timeout --foreground` was rejected: the orphaned
    QEMU then holds the tee pipe open and make hangs.
+6. Zephyr main moved forward (user rebased onto origin/main, Oct 2026;
+   conflict in `submanifests/optional.yaml` resolved as the union of
+   upstream's new tflite-micro pin `43b2a106` and our
+   `path: modules/tflite-micro`). Follow-ups required by the jump: `west update`
+   synced every module (a stale `hal/rpi_pico` broke the hwinfo driver build),
+   and the RP2350 board qualifier was renamed upstream `m33/w` → `m33_0/w` —
+   board-scoped fragments match the *canonical* board id, so they silently
+   stopped applying (USB CDC vanished; caught via firmware size dropping back
+   to 56 KB). Fixed by renaming `boards/` fragments to
+   `rpi_pico2_rp2350a_m33_0_w.*` and switching Makefile BOARD to the canonical
+   `rpi_pico2/rp2350a/m33_0/w`. Verified: pico build 68.1 KB flash with CDC
+   restored, qemu smoke test green.
