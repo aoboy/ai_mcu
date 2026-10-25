@@ -1,7 +1,7 @@
 /*
  * model_int8.tflite — embedded TFLite-Micro model (GENERATED FILE, do not edit).
  *
- * Source : /home/aimlrn/ai_mcu/ai_rpi2350/model/model_int8.tflite
+ * Source : /home/aimlrn/ai_mcu/projects/tflite-micro/model/model_int8.tflite
  * Bytes  : 3464
  * Regen  : make header        (model/tflite_to_cc.py)
  */

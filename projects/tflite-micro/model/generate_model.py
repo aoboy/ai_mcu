@@ -2,7 +2,7 @@
 """generate_model.py — train + int8-quantize the sine model for the MCU.
 
 Thin wrapper around the shared end-to-end pipeline in
-``script/generate_tf_mcu_model.py`` (train -> save -> int8 PTQ with a
+``tools/ml/generate_tf_mcu_model.py`` (train -> save -> int8 PTQ with a
 representative dataset -> validate -> op inventory), redirected at this
 application's output locations:
 
@@ -27,9 +27,9 @@ import argparse
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent          # <repo>/ai_rpi2350/model
-REPO = HERE.parent.parent                        # <repo> = /home/aimlrn/ai_mcu
-sys.path.insert(0, str(REPO / "script"))         # shared pipeline lives here
+HERE = Path(__file__).resolve().parent          # <repo>/projects/tflite-micro/model
+REPO = HERE.parents[2]                          # <repo> = /home/aimlrn/ai_mcu
+sys.path.insert(0, str(REPO / "tools" / "ml"))  # shared pipeline lives here
 
 import generate_tf_mcu_model as pipeline         # noqa: E402
 

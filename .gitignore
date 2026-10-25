@@ -1,15 +1,15 @@
-# Build outputs (west/cmake trees per board)
-ai_rpi2350/build_*/
+# Build outputs (west/cmake trees per board) — projects/*/ matches any project
+projects/*/build_*/
 qemu_output.log
 
 # Generated training artifacts — regenerate with `make model` / `make header`
-ai_rpi2350/model/calib/
-ai_rpi2350/model/sine_model/
-ai_rpi2350/model/sine_model.keras
-script/calib/
-script/sine_model/
-script/sine_model.keras
-script/model_int8.tflite
+projects/*/model/calib/
+projects/*/model/sine_model/
+projects/*/model/sine_model.keras
+tools/ml/calib/
+tools/ml/sine_model/
+tools/ml/sine_model.keras
+tools/ml/model_int8.tflite
 
 # Archives / session metadata
 script.zip

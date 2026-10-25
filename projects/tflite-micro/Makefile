@@ -41,7 +41,7 @@ MODEL_CC     := $(APP_DIR)/src/sine_model_data.cc
 MODEL_H      := $(APP_DIR)/src/sine_model.h
 GEN_PY       := $(APP_DIR)/model/generate_model.py
 EMBED_PY     := $(APP_DIR)/model/tflite_to_cc.py
-PIPELINE_PY  := $(APP_DIR)/../script/generate_tf_mcu_model.py
+PIPELINE_PY  := $(APP_DIR)/../../tools/ml/generate_tf_mcu_model.py
 
 WEST := cd $(WEST_TOPDIR) && west
 
