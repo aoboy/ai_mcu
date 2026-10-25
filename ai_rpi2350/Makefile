@@ -21,7 +21,7 @@
 
 APP_DIR      := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 WEST_TOPDIR  ?= /home/agonga/zephyrproject
-ML_PYTHON    ?= /home/agonga/.virtualenvs/machine_learn/bin/python
+ML_PYTHON    ?= /home/agonga/.virtualenvs/tensorflow/bin/python
 
 BOARD        ?= rpi_pico2/rp2350a/m33_0/w
 PRISTINE     ?= auto
