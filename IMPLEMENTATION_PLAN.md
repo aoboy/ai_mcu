@@ -127,9 +127,9 @@ next steps (CMSIS-NN kernels, sensors, networking).
    process group, so QEMU reading the controlling TTY raises SIGTTIN and stops
    before its first serial byte — the test passed with piped stdin (CI/agent)
    but showed an empty console in an interactive terminal. Fix: run
-   `west build -t run < /dev/null` (output still streams via tee; Ctrl-C or the
-   timeout stop the run). `timeout --foreground` was rejected: the orphaned
-   QEMU then holds the tee pipe open and make hangs.
+   `west build -t run < /dev/null` (output still streams via tee; the timeout
+   stops the run — Ctrl-C did not, see item 7). `timeout --foreground` was
+   rejected: the orphaned QEMU then holds the tee pipe open and make hangs.
 6. Zephyr main moved forward (user rebased onto origin/main, Oct 2026;
    conflict in `submanifests/optional.yaml` resolved as the union of
    upstream's new tflite-micro pin `43b2a106` and our
@@ -142,3 +142,14 @@ next steps (CMSIS-NN kernels, sensors, networking).
    `rpi_pico2_rp2350a_m33_0_w.*` and switching Makefile BOARD to the canonical
    `rpi_pico2/rp2350a/m33_0/w`. Verified: pico build 68.1 KB flash with CDC
    restored, qemu smoke test green.
+7. `make qemu` Ctrl-C fixed (follow-up to 5): `timeout` puts west/ninja/QEMU
+   in their own process group, so the terminal SIGINT never reached QEMU, and
+   the `-` recipe prefix made make ignore the interrupt. On this host
+   `timeout` is uutils coreutils, which moves *itself* into that group too, so
+   it never received the terminal signal either. Added
+   `ai_rpi2350/scripts/run_qemu.sh`: it traps INT/TERM, signals `timeout`
+   (which forwards to the whole group so QEMU gets a graceful SIGINT) and
+   falls back to the `qemu.pid` written by Zephyr's QEMU runner. Dropped the
+   `-` prefix so make aborts on Ctrl-C. Verified in a PTY: make exits
+   immediately, no QEMU/timeout/west processes are left behind; the timeout
+   path still passes the inference grep.

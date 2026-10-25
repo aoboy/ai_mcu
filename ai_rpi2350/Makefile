@@ -68,17 +68,18 @@ build: $(MODEL_CC)
 	$(WEST) build -b $(BOARD) -d $(BUILD_DIR) -p $(PRISTINE) $(APP_DIR)
 
 # QEMU smoke test: build the same app for qemu_x86 and run it, capturing the
-# console. timeout(1) kills the run (exit 124 is expected — the firmware loops
-# forever); the grep proves real inferences happened.
+# console. The timeout inside scripts/run_qemu.sh ends the run after
+# QEMU_TIMEOUT seconds (the firmware loops forever); the grep proves real
+# inferences happened.
+#
+# timeout(1) puts west/ninja/QEMU in a separate process group, so a terminal
+# Ctrl-C would never reach the emulator. The wrapper forwards SIGINT and falls
+# back to QEMU's pidfile, so Ctrl-C stops the run immediately instead of
+# waiting for the timeout.
 qemu: $(MODEL_CC)
 	$(WEST) build -b $(QEMU_BOARD) -d $(QEMU_BUILD) -p $(PRISTINE) $(APP_DIR)
-	# stdin from /dev/null: under `timeout` the child runs in a background
-	# process group, so QEMU reading the controlling TTY would raise SIGTTIN
-	# and stop instantly (empty console). Output still streams via tee; stop
-	# early with Ctrl-C or let the timeout kill the whole process group.
-	-@(cd $(WEST_TOPDIR) && timeout --kill-after=2 $(QEMU_TIMEOUT) \
-		west build -d $(QEMU_BUILD) -t run < /dev/null) 2>&1 | tee $(APP_DIR)/qemu_output.log
-	@pkill -f "qemu[-]system.*$(notdir $(QEMU_BUILD))" 2>/dev/null || true
+	@$(APP_DIR)/scripts/run_qemu.sh "$(WEST_TOPDIR)" "$(QEMU_BUILD)" "$(QEMU_TIMEOUT)" \
+		2>&1 | tee $(APP_DIR)/qemu_output.log
 	@grep -m1 "x_value:" $(APP_DIR)/qemu_output.log \
 		&& echo "[qemu] sine inference verified on $(QEMU_BOARD)" \
 		|| (echo "[qemu] FAILED: no inference output found" && exit 1)

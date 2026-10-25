@@ -352,12 +352,16 @@ x_value: 6.234, y_value: -0.039
 ```
 
 The runner feeds QEMU's stdin from `/dev/null` on purpose: under `timeout`
-the child runs in a *background* process group, and a QEMU that reads the
-controlling TTY would be stopped by SIGTTIN before printing its first
-serial byte -- the console looks dead and the smoke test fails with
-"no inference output found" (it only happens in an interactive terminal;
-piped stdin masks the problem). Output still streams live to the
-terminal; stop early with `Ctrl-C`, or let the 30 s timeout end the run.
+the west/ninja/QEMU chain runs in a *background* process group, and a QEMU
+that reads the controlling TTY would be stopped by SIGTTIN before printing
+its first serial byte -- the console looks dead and the smoke test fails
+with "no inference output found" (it only happens in an interactive
+terminal; piped stdin masks the problem). Output still streams live to the
+terminal. Because that process group is also cut off from the terminal's
+signals, `scripts/run_qemu.sh` forwards `Ctrl-C` to `timeout` (and falls
+back to QEMU's `-pidfile`), so the emulator shuts down gracefully instead
+of lingering until the 30 s timeout. Without `Ctrl-C`, the timeout ends the
+run and the target verifies the console output as before.
 
 The `y` values trace `sin(x)`: up to +1 near `x = 1.57`, down to -1 near
 `x = 4.71`, back to 0 at `2*pi`. (~200k inferences in a 20-second run.)
