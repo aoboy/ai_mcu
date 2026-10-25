@@ -40,26 +40,29 @@ Steps (in order):
 No changes inside the module repo are required: `zephyr/module.yml`
 (`cmake-ext`/`kconfig-ext`) + Zephyr's in-tree glue is the official mechanism.
 
-## 2. Phase 2 — The Zephyr application (`/home/aimlrn/ai_mcu/ai_rpi2350/`)
+## 2. Phase 2 — The Zephyr application (`projects/tflite-micro/`)
 
 Correction: the plan says `/home/aimlrn/ai_cmu`; that directory does not exist.
 The project is implemented under **`/home/aimlrn/ai_mcu/`** (the working
-directory that already holds `research/` and `script/`).
+directory that already held `research/` and `script/`). Since then the repo was
+reorganized for multiple projects — see deviation 8 for the current layout.
 
 ```
-ai_rpi2350/
+projects/tflite-micro/
 ├── CMakeLists.txt            # standard Zephyr app, C++17, no-threadsafe-statics
 ├── prj.conf                  # CONFIG_CPP, CONFIG_TENSORFLOW_LITE_MICRO, float printf
 ├── Makefile                  # model / header / build / qemu / flash_mcu / mcu_monitor
 ├── boards/                   # board-specific, auto-applied for rpi_pico2/.../w only
 │   ├── rpi_pico2_rp2350a_m33_0_w.overlay  # USB CDC ACM console (devicetree)
 │   └── rpi_pico2_rp2350a_m33_0_w.conf     # USB device stack + CDC ACM (Kconfig)
+├── scripts/
+│   └── run_qemu.sh           # qemu runner: forwards Ctrl-C to timeout/QEMU
 ├── src/
 │   ├── main.cpp              # MicroInterpreter + MicroMutableOpResolver, int8 I/O
 │   ├── sine_model.h          # extern declarations for the embedded model
 │   └── sine_model_data.cc    # GENERATED: model bytes as C array (alignas(16))
 └── model/
-    ├── generate_model.py     # wrapper around script/generate_tf_mcu_model.py pipeline
+    ├── generate_model.py     # wrapper around tools/ml/generate_tf_mcu_model.py pipeline
     └── tflite_to_cc.py       # .tflite -> sine_model_data.cc + sine_model.h
 ```
 
@@ -76,7 +79,7 @@ which targets this exact module/glue):
 ## 3. Phase 3 — Model generation
 
 - Wrapper `model/generate_model.py` imports the existing pipeline in
-  `script/generate_tf_mcu_model.py` (single source of truth) and runs
+  `tools/ml/generate_tf_mcu_model.py` (single source of truth) and runs
   train → int8-quantize (representative dataset from the same sine inputs) →
   validate → op inventory, writing `model/model_int8.tflite`.
 - `model/tflite_to_cc.py` converts the flatbuffer into `src/sine_model_data.cc`
@@ -147,9 +150,24 @@ next steps (CMSIS-NN kernels, sensors, networking).
    the `-` recipe prefix made make ignore the interrupt. On this host
    `timeout` is uutils coreutils, which moves *itself* into that group too, so
    it never received the terminal signal either. Added
-   `ai_rpi2350/scripts/run_qemu.sh`: it traps INT/TERM, signals `timeout`
+   `projects/tflite-micro/scripts/run_qemu.sh`: it traps INT/TERM, signals `timeout`
    (which forwards to the whole group so QEMU gets a graceful SIGINT) and
    falls back to the `qemu.pid` written by Zephyr's QEMU runner. Dropped the
    `-` prefix so make aborts on Ctrl-C. Verified in a PTY: make exits
    immediately, no QEMU/timeout/west processes are left behind; the timeout
    path still passes the inference grep.
+8. Repo reorganized for multiple projects (the working directory now hosts
+   more than this one). One project's files had been spread over four
+   top-level directories, and the shared training pipeline sat next to
+   them. New layout: `projects/<name>/` holds each project root, `tools/ml/`
+   holds reusable tooling. Concretely: `ai_rpi2350/` → `projects/tflite-micro/`,
+   `script/generate_tf_mcu_model.py` → `tools/ml/`, and the repo-level
+   `IMPLEMENTATION_PLAN.md`, `docs/`, `research/` moved into the project.
+   The stale `build_*/` trees were deleted rather than moved — CMakeCache
+   and build.ninja bake in absolute paths, so they were invalid the moment
+   anything moved (regenerate with `make build` / `make qemu`).
+   References fixed: Makefile `PIPELINE_PY`, `generate_model.py`'s
+   `sys.path`, `.vscode` cmake.sourceDirectory, `.gitignore` globs (now
+   `projects/*/…` so they cover future projects), tutorial paths and file
+   maps, and the generated-file source comments in `src/sine_model.{h,cc}`
+   (a `make header` regen now writes the new path itself).

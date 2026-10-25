@@ -169,9 +169,9 @@ automatically -- no `ZEPHYR_EXTRA_MODULES` needed.
 
 ## 4. Step 2 -- Train and quantize the model (PC side)
 
-All under `ai_rpi2350/model/`. The wrapper
+All under `projects/tflite-micro/model/`. The wrapper
 `generate_model.py` drives the shared pipeline
-`script/generate_tf_mcu_model.py` (train -> save -> quantize -> validate ->
+`tools/ml/generate_tf_mcu_model.py` (train -> save -> quantize -> validate ->
 inventory) with this application's output paths.
 
 ### Why full int8?
@@ -187,7 +187,7 @@ converter observes a **representative dataset** and picks activation ranges.
 
 ```
 workon machine_learn
-cd /home/aimlrn/ai_mcu/ai_rpi2350
+cd /home/aimlrn/ai_mcu/projects/tflite-micro
 make model            # = python model/generate_model.py  (800 epochs)
 ```
 
@@ -266,16 +266,18 @@ const int g_sine_model_len = 3464;
 
 ## 6. Step 4 -- The firmware
 
-Layout of `ai_rpi2350/`:
+Layout of the project (`projects/tflite-micro/`):
 
 ```
-ai_rpi2350/
+projects/tflite-micro/
 +-- CMakeLists.txt     # standard Zephyr app; C++17, no thread-safe statics
 +-- prj.conf           # CONFIG_CPP, CONFIG_TENSORFLOW_LITE_MICRO, float printf
 +-- Makefile           # model / header / build / qemu / flash_mcu / mcu_monitor
 +-- boards/            # board-specific; auto-applied for rpi_pico2/.../w only
 |   +-- rpi_pico2_rp2350a_m33_0_w.overlay   # USB CDC ACM console (devicetree)
 |   \-- rpi_pico2_rp2350a_m33_0_w.conf      # USB device stack + CDC ACM (Kconfig)
++-- scripts/
+|   \-- run_qemu.sh        # qemu runner: Ctrl-C stops the emulator
 +-- src/
 |   +-- main.cpp               # interpreter, resolver, int8 I/O, printout
 |   +-- sine_model.h           # extern decls (generated)
@@ -285,6 +287,10 @@ ai_rpi2350/
     +-- tflite_to_cc.py        # .tflite -> C array
     \-- model_int8.tflite      # the artifact
 ```
+
+The training pipeline itself is shared and lives outside the project, in
+`tools/ml/generate_tf_mcu_model.py`, so other projects in this repo can
+import the same code.
 
 The interesting part of `src/main.cpp`:
 
@@ -333,7 +339,7 @@ registrations and console output in seconds:
 
 ```
 workon zephyr_rtos
-cd /home/aimlrn/ai_mcu/ai_rpi2350
+cd /home/aimlrn/ai_mcu/projects/tflite-micro
 make qemu          # builds for qemu_x86, runs it for 30 s, greps the console
 ```
 
@@ -372,7 +378,7 @@ The `y` values trace `sin(x)`: up to +1 near `x = 1.57`, down to -1 near
 
 ```
 workon zephyr_rtos
-cd /home/aimlrn/ai_mcu/ai_rpi2350
+cd /home/aimlrn/ai_mcu/projects/tflite-micro
 make build         # BOARD defaults to rpi_pico2/rp2350a/m33_0/w
 ```
 
@@ -567,13 +573,16 @@ honours the submanifest and ignores the shadowed entry.
 ## Appendix A -- File map (everything created by this project)
 
 ```
-/home/aimlrn/ai_mcu/
-+-- IMPLEMENTATION_PLAN.md              # plan + decisions + deviations
-+-- docs/tutorial.md                    # this document
-+-- docs/tutorial.pdf                   # PDF rendering
-+-- research/project-plan.txt           # original brief (+ status addendum)
-+-- script/generate_tf_mcu_model.py     # shared train/quantize pipeline (pre-existing)
-\-- ai_rpi2350/
+/home/aimlrn/ai_mcu/                       # repo root — several projects live here
++-- README.md                               # repo map + project list
++-- tools/ml/generate_tf_mcu_model.py       # shared train/quantize pipeline (pre-existing)
+\-- projects/tflite-micro/
+    +-- README.md                           # what this project is, board, status
+    +-- IMPLEMENTATION_PLAN.md              # plan + decisions + deviations
+    +-- docs/tutorial.md                    # this document
+    +-- docs/tutorial.pdf                   # PDF rendering
+    +-- research/project-plan.txt           # original brief (+ status addendum)
+    +-- scripts/run_qemu.sh                 # qemu runner (forwards Ctrl-C)
     +-- CMakeLists.txt
     +-- prj.conf
     +-- Makefile

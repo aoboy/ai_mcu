@@ -26,9 +26,10 @@ Update this plan with the changes with whatever is needed (you may need to creat
 [DONE] MCU: Raspberry Pi Pico 2 W — board qualifier rpi_pico2/rp2350a/m33_0/w
        (matches the working command in zephyr/AGO_NOTES.txt).
 [DONE] Tutorial: docs/tutorial.md + docs/tutorial.pdf (9 pages, pandoc+pdflatex).
-[DONE] Zephyr project implemented under /home/aimlrn/ai_mcu/ai_rpi2350
+[DONE] Zephyr project implemented under /home/aimlrn/ai_mcu/projects/tflite-micro
        (NOTE: the "/home/aimlrn/ai_cmu" above is a typo — that dir does not
-       exist; ai_mcu is the working dir holding research/ and script/).
+       exist; ai_mcu is the working dir. Repo reorganized for multiple
+       projects: see deviation 8 in IMPLEMENTATION_PLAN.md).
 [DONE] tflite-micro moved: optional/modules/lib/tflite-micro -> modules/tflite-micro.
        west.yml had a DUPLICATE hand-added tflite-micro entry (path:
        modules/tflite-micro) that was silently shadowed by the official
@@ -37,10 +38,10 @@ Update this plan with the changes with whatever is needed (you may need to creat
        inside submanifests/optional.yaml, moved the checkout. No module-internal
        CMake/Kconfig glue was needed: Zephyr main ships it in-tree at
        zephyr/modules/tflite-micro/ (module.yml cmake-ext/kconfig-ext wires it).
-[DONE] Makefile: ai_rpi2350/Makefile — model, header, build, qemu, flash,
+[DONE] Makefile: projects/tflite-micro/Makefile — model, header, build, qemu, flash,
        size, rom_report, menuconfig, clean, distclean (west runs from the
        workspace via `cd $(WEST_TOPDIR)`, app stays out-of-tree).
-[DONE] Model: model/generate_model.py reuses script/generate_tf_mcu_model.py
+[DONE] Model: model/generate_model.py reuses tools/ml/generate_tf_mcu_model.py
        (train -> int8 PTQ w/ representative dataset -> validate -> inventory);
        3464-byte int8 flatbuffer, quantized MSE 0.00017; ops: FULLY_CONNECTED.
        Embedded via model/tflite_to_cc.py into src/sine_model_data.cc.
