@@ -6,22 +6,28 @@
 # context for module discovery — the tflite-micro module among others).
 #
 # Typical flow:
-#   workon machine_learn        # TF (CPU) for the training step   (make model)
+#   workon tensorflow           # TF (CPU) for the training step   (make model)
 #   make model header           # train -> int8 .tflite -> C array
 #   workon zephyr_rtos          # west + Zephyr SDK for firmware   (make build)
 #   make build                  # -> build_rpi_pico2_rp2350a_m33_0_w/zephyr.uf2
 #   make qemu                   # smoke-test inference on qemu_x86
 #   make flash_mcu              # west flash -r uf2 (board in BOOTSEL mode)
-#   make mcu_monitor            # serial console (minicom/picocom/screen)
+#   make mcu_monitor            # serial console
 #
 # Override examples:
 #   make build BOARD=rpi_pico2/rp2350a/m33_0        (Pico 2, no WiFi radio)
 #   make build BUILD_DIR=/tmp/tflm_build PRISTINE=always
 # =============================================================================
+# Environment names and paths come from tools/env.sh (single source of truth,
+# shared with the other projects); the fallbacks below only apply if it moved.
+# Interactive shells: `workon tensorflow` / `workon zephyr_rtos`.
 
 APP_DIR      := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-WEST_TOPDIR  ?= /home/agonga/zephyrproject
-ML_PYTHON    ?= /home/agonga/.virtualenvs/tensorflow/bin/python
+ENV_SH       := $(abspath $(APP_DIR)/../../tools/env.sh)
+WEST_TOPDIR  ?= $(shell . $(ENV_SH) 2>/dev/null; echo "$${AI_WEST_TOPDIR:-$$HOME/zephyrproject}")
+ML_PYTHON    ?= $(shell { . $(ENV_SH) 2>/dev/null && ai_python "$$AI_ENV_TF"; } 2>/dev/null || echo "$$HOME/.virtualenvs/tensorflow/bin/python")
+WORKON_HOME  ?= $(shell . $(ENV_SH) 2>/dev/null; echo "$${AI_WORKON_HOME:-$$HOME/.virtualenvs}")
+ZEPHYR_ENV   ?= $(shell . $(ENV_SH) 2>/dev/null; echo "$${AI_ENV_ZEPHYR:-zephyr_rtos}")
 
 BOARD        ?= rpi_pico2/rp2350a/m33_0/w
 PRISTINE     ?= auto
@@ -43,7 +49,10 @@ GEN_PY       := $(APP_DIR)/model/generate_model.py
 EMBED_PY     := $(APP_DIR)/model/tflite_to_cc.py
 PIPELINE_PY  := $(APP_DIR)/../../tools/ml/generate_tf_mcu_model.py
 
-WEST := cd $(WEST_TOPDIR) && west
+# west runs from the workspace with the zephyr_rtos venv bin on PATH, so the
+# firmware targets work whether or not the caller did `workon zephyr_rtos`.
+ZEPHYR_BIN := $(WORKON_HOME)/$(ZEPHYR_ENV)/bin
+WEST := cd $(WEST_TOPDIR) && export PATH="$(ZEPHYR_BIN):$$PATH" && west
 
 .DEFAULT_GOAL := help
 .PHONY: all model header build qemu flash_mcu flash mcu_monitor size rom_report menuconfig clean distclean help

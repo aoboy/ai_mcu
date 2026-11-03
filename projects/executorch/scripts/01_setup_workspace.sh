@@ -35,10 +35,16 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WS="${1:-$HOME/zephyrproject}"
-ENV_NAME="${ENV_NAME:-zephyr_rtos}"
-PYTORCH_ENV="${PYTORCH_ENV:-pytorch_cu132}"
-WORKON_HOME="${WORKON_HOME:-$HOME/.virtualenvs}"
+# Environment names / paths come from tools/env.sh (repo-wide single source of
+# truth); the fallbacks below only apply if that file moved.
+if [ -f "${REPO_DIR}/../../tools/env.sh" ]; then
+  # shellcheck disable=SC1091
+  . "${REPO_DIR}/../../tools/env.sh"
+fi
+WS="${1:-${AI_WEST_TOPDIR:-$HOME/zephyrproject}}"
+ENV_NAME="${ENV_NAME:-${AI_ENV_ZEPHYR:-zephyr_rtos}}"
+PYTORCH_ENV="${PYTORCH_ENV:-${AI_ENV_TORCH:-pytorch_cu132}}"
+WORKON_HOME="${WORKON_HOME:-${AI_WORKON_HOME:-$HOME/.virtualenvs}}"
 # west project names this project needs (path != name, e.g. hal_infineon
 # lives at modules/hal/infineon, which is why we check via `west list`).
 REQUIRED_MODULES="executorch cmsis cmsis-nn cmsis_6 hal_infineon"

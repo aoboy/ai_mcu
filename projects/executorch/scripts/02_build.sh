@@ -19,9 +19,15 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VARIANT="${1:-portable}"
-WS="${2:-$HOME/zephyrproject}"
-ENV_NAME="${ENV_NAME:-zephyr_rtos}"
-WORKON_HOME="${WORKON_HOME:-$HOME/.virtualenvs}"
+# Environment names / paths come from tools/env.sh (repo-wide single source of
+# truth); the fallbacks below only apply if that file moved.
+if [ -f "${REPO_DIR}/../../tools/env.sh" ]; then
+  # shellcheck disable=SC1091
+  . "${REPO_DIR}/../../tools/env.sh"
+fi
+WS="${2:-${AI_WEST_TOPDIR:-$HOME/zephyrproject}}"
+ENV_NAME="${ENV_NAME:-${AI_ENV_ZEPHYR:-zephyr_rtos}}"
+WORKON_HOME="${WORKON_HOME:-${AI_WORKON_HOME:-$HOME/.virtualenvs}}"
 BOARD="${BOARD:-rpi_pico2/rp2350a/m33_0/w}"
 BUILD_DIR="${REPO_DIR}/build-${VARIANT}"
 
