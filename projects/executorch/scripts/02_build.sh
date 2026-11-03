@@ -86,5 +86,6 @@ echo "Flash (either way works):"
 echo "  1) hold BOOTSEL, plug USB, copy zephyr.uf2 onto the RPI-RP2350 drive"
 echo "  2) west flash -d ${BUILD_DIR}"
 echo
-echo "Console: UART0 on GP0(TX)/GP1(RX) at 115200 8N1, e.g."
-echo "  picocom -b 115200 /dev/ttyUSB0"
+echo "Console: USB CDC ACM on the board's USB port (RPI VID 2E8A,"
+echo "  enumerates as /dev/ttyACM*), e.g."
+echo "  picocom /dev/ttyACM0"

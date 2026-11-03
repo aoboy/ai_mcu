@@ -11,7 +11,7 @@
 #   make model               # train -> mnist_cnn_{fp32,int8}.pte (torch env)
 #   make build               # VARIANT=portable|cmsis (default: portable)
 #   make flash               # west flash -r uf2 (board in BOOTSEL mode)
-#   make monitor             # serial console (UART0 GP0/GP1 @ 115200)
+#   make monitor             # serial console (USB CDC ACM, /dev/ttyACM*)
 #
 # Interactive equivalents: `workon pytorch_cu132` for the model step,
 # `workon zephyr_rtos` for firmware. Environment names and paths come from
@@ -36,7 +36,7 @@ VARIANT      ?= portable
 BOARD        ?= rpi_pico2/rp2350a/m33_0/w
 BUILD_DIR    := $(APP_DIR)/build-$(VARIANT)
 PRISTINE     ?= auto
-SERIAL_PORT  ?= /dev/ttyUSB0
+SERIAL_PORT  ?= /dev/ttyACM0
 SERIAL_BAUD  ?= 115200
 
 # QEMU smoke test (see the qemu target): same app, host-emulated x86 board.
@@ -131,9 +131,12 @@ flash:
 # Backwards-compatible aliases with the tflite-micro target names.
 flash_mcu: flash
 
-# Live serial console. This app prints on UART0 (GP0 TX / GP1 RX) through a
-# 3.3 V USB-UART adapter -- NOT on the board's USB connector. Uses picocom,
-# minicom or screen — whichever is installed.
+# Live serial console. This app prints on the board's native USB port,
+# which enumerates as a CDC ACM serial device (/dev/ttyACM*, Raspberry Pi
+# VID 2E8A) — just the USB cable, no UART adapter. (A UART0 console on
+# GP0 TX / GP1 RX @ 115200 is available via a custom overlay instead; in
+# that case override SERIAL_PORT=/dev/ttyUSB0.) Uses picocom, minicom or
+# screen — whichever is installed.
 monitor:
 	@if [ ! -e "$(SERIAL_PORT)" ]; then \
 		echo "[monitor] $(SERIAL_PORT) not found. Serial devices present:"; \

@@ -1,0 +1,28 @@
+/*
+ * USB CDC ACM console for the Raspberry Pi Pico 2 W (RP2350).
+ *
+ * Mirrors projects/tflite-micro/boards/rpi_pico2_rp2350a_m33_0_w.overlay
+ * (originally inspired by zephyr/samples/basic/pico2w_gpio16_blinky):
+ * the board's native USB port enumerates as a CDC ACM serial device
+ * (Raspberry Pi VID 2E8A / PID 000A -> /dev/ttyACM* on the host) and the
+ * Zephyr console (printk) is routed there — no UART adapter needed.
+ *
+ * Board-specific file: Zephyr auto-applies <app>/boards/<board>.overlay
+ * only when building for rpi_pico2/rp2350a/m33_0/w, so the qemu_x86 smoke
+ * test keeps its regular console. Applies to BOTH firmware variants
+ * (portable and cmsis) — the app code never changes.
+ */
+
+/ {
+	/* Route the console to the CDC ACM UART instance below. */
+	chosen {
+		zephyr,console = &cdc_acm_uart0;
+	};
+};
+
+/* CDC ACM UART instance under the Pico's USB device controller. */
+&zephyr_udc0 {
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};

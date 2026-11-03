@@ -14,7 +14,7 @@ PyTorch (host)                Zephyr (Pico 2 W)
 │ export_mnist.py  │  .pte    │   Method::execute()                   │
 │  ├─ float32 ─────┼────────► │   ├─ Portable Ops kernels             │
 │  └─ INT8 (CMSIS)─┼────────► │   └─ Cortex-M / CMSIS-NN kernels      │
-└──────────────────┘          │  results on UART0 + onboard LED       │
+└──────────────────┘          │  results on USB CDC + onboard LED     │
                               └───────────────────────────────────────┘
 ```
 
@@ -47,7 +47,11 @@ PyTorch (host)                Zephyr (Pico 2 W)
 | Host OS | Linux | macOS can export models but not flash via `west` |
 | Python | 3.10+ | for training/export only |
 
-Console: **UART0**, pins **GP0 (TX) / GP1 (RX)**, **115200 8N1**.
+Console: **USB CDC ACM** on the board's native USB port — enumerates as
+`/dev/ttyACM*` (Raspberry Pi VID 2E8A), same recipe as `projects/tflite-micro`
+(board-scoped `app/boards/*.overlay`). No UART adapter needed. A UART0
+console (GP0 TX / GP1 RX, 115200 8N1, 3.3 V logic) is available instead by
+editing the overlay.
 LED: onboard LED (CYW43 `led0` on the W, GPIO25 on the plain Pico 2).
 
 ## Repository layout
@@ -108,7 +112,7 @@ make build VARIANT=cmsis
 
 # 5. Flash: hold BOOTSEL, plug USB, `make flash` (or drop
 #    build-cmsis/zephyr/zephyr.uf2 onto the RPI-RP2350 drive).
-#    Console on GP0/GP1 @ 115200.
+#    Console: USB CDC ACM (/dev/ttyACM*) on the same USB cable.
 make monitor
 ```
 
@@ -288,9 +292,10 @@ about selective builds — at the cost of a much larger binary.
   `build-cmsis/zephyr/zephyr.uf2` onto the mounted `RPI-RP2350` drive.
 - or `west flash -d build-cmsis` (needs OpenOCD/picotool setup).
 
-Open the console: **UART0, GP0=TX, GP1=RX, 115200 8N1** (3.3 V logic — use a
-3.3 V USB-UART adapter). Reset the board and watch the digits classify
-themselves; the onboard LED blinks *(predicted class + 1)* times per digit.
+Open the console: the board's USB port enumerates as **USB CDC ACM**
+(`/dev/ttyACM*`, Raspberry Pi VID 2E8A) — just plug the cable and watch the
+digits classify themselves; the onboard LED blinks *(predicted class + 1)*
+times per digit. `make monitor` opens picocom/minicom/screen for you.
 
 ## Memory budget (Pico 2 W)
 
@@ -328,7 +333,7 @@ the [Pico2 MNIST tutorial]).
 | `load_method ... MemoryAllocationFailed` / OOM in planned buffer | pool too small | raise `CONFIG_EXECUTORCH_METHOD_ALLOCATOR_POOL_SIZE` |
 | runtime error `0x14` (operator missing) | selective build missed an op | check `python/export_mnist.py` output; set `CONFIG_EXECUTORCH_BUILD_PORTABLE_OPS=y` |
 | linker: `region FLASH overflowed` | all-portable-ops build too big | keep `=n`, selective build only |
-| no console output | wrong UART pins | console is UART0 GP0/GP1 115200, not USB |
+| no console output | no CDC ACM device | check `ls /dev/ttyACM*` after flashing; the console is the board's USB port (UART0 GP0/GP1 only with a custom overlay) |
 | LED doesn't blink | using plain Pico 2 | LED alias differs; build board `rpi_pico2/rp2350a/m33` (still uses `led0`) |
 | export: `torchao`/`executorch` import error | wrong environment | `workon pytorch_cu132` — torch + executorch live there, not in `zephyr_rtos` |
 
