@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* cascade palette (seed 42) — cover aliases */
+    --c-bg: #f4f5f5;
+    --c-accent: #1f6c92;
+    --c-text: #131515;
+    --c-muted: #747b7e;
+    --c-mid: #32454e;
+    --c-surface: #e8eaeb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 794px; height: 1123px;
+    background: var(--c-bg);
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  }
+  .cover {
+    position: relative;
+    width: 794px; height: 1123px;
+    background: var(--c-bg);
+    overflow: hidden;
+  }
+  /* Layer 1 — background grid, primary at 2% opacity, ~67px pitch */
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(to right, rgba(31,108,146,0.05) 0, rgba(31,108,146,0.05) 0.5px, transparent 0.5px, transparent 67px),
+      repeating-linear-gradient(to bottom, rgba(31,108,146,0.05) 0, rgba(31,108,146,0.05) 0.5px, transparent 0.5px, transparent 67px);
+  }
+  /* Layer 2 — ultra-thick vertical anchor line: (0.12W, 0.10H) -> (0.12W, 0.90H), 6pt */
+  .vline {
+    position: absolute;
+    left: 95px; top: 112px;
+    width: 8px; height: 899px;
+    background: var(--c-accent);
+  }
+  /* Layer 3 — content drawers at absolute anchors (px, flat structure) */
+  .kicker {
+    position: absolute; left: 150px; top: 168px;
+    font-size: 21px; font-weight: 400;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--c-accent); opacity: 0.72;
+  }
+  .hero {
+    position: absolute; left: 150px; top: 337px;
+    font-size: 64px; font-weight: 900; line-height: 1.15;
+    color: var(--c-text);
+    max-width: 600px;
+  }
+  .summary {
+    position: absolute; left: 150px; top: 566px;
+    max-width: 476px;
+    font-size: 22px; font-weight: 400; line-height: 1.6;
+    color: var(--c-text); opacity: 0.85;
+  }
+  .meta {
+    position: absolute; left: 150px; top: 830px;
+    font-size: 21px; font-weight: 300; line-height: 1.55;
+    color: var(--c-text); opacity: 0.85;
+  }
+  .meta .strong { font-weight: 600; }
+  .footer {
+    position: absolute; left: 150px; top: 1032px;
+    font-size: 21px; font-weight: 400;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--c-muted); opacity: 0.62;
+  }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="grid"></div>
+  <div class="vline"></div>
+
+  <div class="kicker">Edge AI Tutorial &middot; ExecuTorch &times; Zephyr</div>
+
+  <div class="hero">PyTorch Inference<br>on the Pico 2 W</div>
+
+  <div class="summary">
+    Train a tiny CNN in PyTorch, export it to the ExecuTorch .pte format, and
+    run it as a Zephyr RTOS application on the RP2350 &mdash; the same firmware
+    executes Portable Ops or CMSIS-NN INT8 kernels, chosen by the model you
+    embed.
+  </div>
+
+  <div class="meta">
+    <span class="strong">Raspberry Pi Pico 2 W</span> &middot; RP2350A &middot; dual Cortex-M33 @ 150 MHz<br>
+    Zephyr v4.4.0 &middot; ExecuTorch v1.5.x &middot; CMSIS-NN<br>
+    520 KiB SRAM &middot; 4 MiB XIP flash &middot; UART console
+  </div>
+
+  <div class="footer">November 2026 &middot; Project Workbook</div>
+</div>
+</body>
+</html>

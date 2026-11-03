@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --header-fill: #32454e;
+    --card-bg: #e8eaeb;
+    --border: #acbdc5;
+    --accent: #1f6c92;
+    --text-primary: #131515;
+    --text-muted: #747b7e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #ffffff; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+  .canvas { width: 1000px; padding: 24px 20px; background: #ffffff; }
+
+  .lane { display: flex; align-items: stretch; margin-bottom: 26px; max-width: 100%; }
+  .lane:last-child { margin-bottom: 0; }
+  .lane-title {
+    width: 118px; flex: 0 0 118px;
+    background: var(--header-fill); color: #ffffff;
+    border-radius: 6px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 10px 8px; margin-right: 0;
+  }
+  .lane-title .t { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+  .lane-title .s { font-size: 15px; color: #c9d4da; margin-top: 4px; font-weight: 400; }
+
+  .nodes { display: flex; flex-wrap: wrap; align-items: stretch; flex: 1 1 auto; min-width: 0; padding-left: 18px; gap: 0; }
+  .node {
+    flex: 1 1 0; min-width: 120px; max-width: 100%;
+    background: #f3f6f8;
+    border: 1.5px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 12px 10px 12px;
+    position: relative;
+  }
+  .node + .node { margin-left: 34px; }
+  .node + .node::before {
+    content: '\2192';
+    position: absolute; left: -27px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 22px; color: var(--accent);
+  }
+  .node .nt { font-size: 21px; font-weight: 700; color: var(--text-primary); line-height: 1.25; }
+  .node .nd { font-size: 16px; color: var(--text-muted); line-height: 1.4; margin-top: 5px; overflow-wrap: break-word; }
+  .node .nc { font-family: 'Consolas', 'DejaVu Sans Mono', monospace; font-size: 15px; color: var(--accent); margin-top: 6px; }
+
+  .bridge {
+    display: flex; align-items: center; justify-content: center;
+    margin: 2px 0 2px 59px; height: 40px; position: relative;
+  }
+  .bridge .down {
+    font-size: 22px; color: var(--accent);
+    position: absolute; left: 50%; transform: translate(-50%, -2px);
+  }
+  .bridge .lbl {
+    position: absolute; left: calc(50% + 26px); top: 50%;
+    transform: translateY(-58%);
+    font-size: 16px; color: var(--text-muted);
+    background: #ffffff; padding: 0 8px; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div class="canvas" id="canvas">
+
+  <div class="lane">
+    <div class="lane-title"><div class="t">HOST</div><div class="s">Linux PC</div></div>
+    <div class="nodes">
+      <div class="node">
+        <div class="nt">Train</div>
+        <div class="nd">TinyCNN on MNIST or offline synthetic strokes</div>
+        <div class="nc">train_mnist.py</div>
+      </div>
+      <div class="node">
+        <div class="nt">Export</div>
+        <div class="nd">float32 + INT8 (CortexMQuantizer, PT2E)</div>
+        <div class="nc">export_mnist.py</div>
+      </div>
+      <div class="node">
+        <div class="nt">.pte program</div>
+        <div class="nd">ExecuTorch flatbuffer, ops + constants + memory plan</div>
+        <div class="nc">mnist_cnn_*.pte</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bridge"><div class="down">&#8595;</div><div class="lbl">embed at build time</div></div>
+
+  <div class="lane">
+    <div class="lane-title"><div class="t">BUILD</div><div class="s">west / CMake</div></div>
+    <div class="nodes">
+      <div class="node">
+        <div class="nt">pte_to_header</div>
+        <div class="nd">.pte becomes const model_pte[] in section network_model_sec</div>
+        <div class="nc">model_pte.h</div>
+      </div>
+      <div class="node">
+        <div class="nt">Zephyr build</div>
+        <div class="nd">app + ExecuTorch module + portable and CMSIS-NN ops libs</div>
+        <div class="nc">west build</div>
+      </div>
+      <div class="node">
+        <div class="nt">zephyr.uf2</div>
+        <div class="nd">single image: RTOS + app + model in flash</div>
+        <div class="nc">drag to RPI-RP2350</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bridge"><div class="down">&#8595;</div><div class="lbl">flash &amp; run</div></div>
+
+  <div class="lane">
+    <div class="lane-title"><div class="t">DEVICE</div><div class="s">Pico 2 W</div></div>
+    <div class="nodes">
+      <div class="node">
+        <div class="nt">Zero-copy load</div>
+        <div class="nd">BufferDataLoader wraps model_pte in XIP flash, no SRAM copy</div>
+        <div class="nc">Program::load()</div>
+      </div>
+      <div class="node">
+        <div class="nt">Execute</div>
+        <div class="nd">static arenas, planned activation buffers, k_cycle_get_32 timing</div>
+        <div class="nc">Method::execute()</div>
+      </div>
+      <div class="node">
+        <div class="nt">Report</div>
+        <div class="nd">logits + prediction on UART0 console, LED blinks the class</div>
+        <div class="nc">printf / gpio</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --header-fill: #32454e;
+    --card-bg: #e8eaeb;
+    --border: #acbdc5;
+    --accent: #1f6c92;
+    --text-primary: #131515;
+    --text-muted: #747b7e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #ffffff; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+  .canvas { width: 1000px; padding: 26px 20px; background: #ffffff; }
+
+  .row { display: flex; gap: 40px; max-width: 100%; }
+  .col { flex: 1 1 0; min-width: 0; }
+  .col-head {
+    background: var(--header-fill); color: #fff;
+    border-radius: 6px; text-align: center;
+    padding: 10px 6px; margin-bottom: 12px;
+  }
+  .col-head .t { font-size: 21px; font-weight: 700; }
+  .col-head .s { font-size: 15px; color: #c9d4da; margin-top: 2px; }
+
+  .seg { border: 1.5px solid var(--border); border-radius: 5px; padding: 9px 12px; margin-bottom: 8px; }
+  .seg .st { font-size: 18px; font-weight: 600; color: var(--text-primary); line-height: 1.25; }
+  .seg .sd { font-size: 14.5px; color: var(--text-muted); line-height: 1.35; margin-top: 2px; overflow-wrap: break-word; }
+  .seg .sz { font-family: 'Consolas', 'DejaVu Sans Mono', monospace; font-size: 14.5px; color: var(--accent); margin-top: 3px; }
+
+  /* Same-hue lightness ladder (Strategy A) - model segments */
+  .seg.m1 { background: #e3ebf1; border-left: 4px solid var(--accent); }
+  .seg.m2 { background: #e9eff4; border-left: 4px solid var(--accent); }
+  .seg.m3 { background: #eff3f7; border-left: 4px solid var(--accent); }
+  .seg.m4 { background: #f4f7fa; border-left: 4px solid var(--accent); }
+  /* Runtime segments */
+  .seg.r1 { background: #e6ece4; border-left: 4px solid #529067; }
+  .seg.r2 { background: #edf2ec; border-left: 4px solid #529067; }
+  .seg.r3 { background: #f2f6f1; border-left: 4px solid #529067; }
+  .seg.r4 { background: #f7f9f6; border-left: 4px solid #529067; }
+
+  .foot { margin-top: 14px; display: flex; gap: 28px; align-items: center; }
+  .key { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text-muted); }
+  .chip { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="canvas" id="canvas">
+
+  <div class="row">
+    <div class="col">
+      <div class="col-head"><div class="t">XIP QSPI Flash</div><div class="s">4 MiB, memory-mapped at 0x10000000</div></div>
+      <div class="seg m1">
+        <div class="st">Zephyr kernel + application code</div>
+        <div class="sd">.text / .rodata - includes the ExecuTorch runtime and kernel libraries</div>
+        <div class="sz">~300-500 KB</div>
+      </div>
+      <div class="seg m2">
+        <div class="st">model_pte[]  (network_model_sec)</div>
+        <div class="sd">the .pte: weights + method bytecode, read in place through the XIP cache - never copied to SRAM</div>
+        <div class="sz">fp32 ~90 KB / int8 ~25 KB</div>
+      </div>
+      <div class="seg m3">
+        <div class="st">Free flash</div>
+        <div class="sd">room for larger models, a LittleFS partition or firmware updates</div>
+        <div class="sz">&gt; 3 MiB</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="col-head"><div class="t">SRAM</div><div class="s">520 KiB on-chip, ten banks</div></div>
+      <div class="seg r1">
+        <div class="st">Zephyr .data / .bss + kernel objects</div>
+        <div class="sd">RTOS state, device drivers, logging</div>
+        <div class="sz">~40-60 KB</div>
+      </div>
+      <div class="seg r2">
+        <div class="st">method_allocation_pool</div>
+        <div class="sd">method metadata + memory-planned activation buffers + I/O tensors (bump allocator)</div>
+        <div class="sz">128 KB, ~13-46 KB used</div>
+      </div>
+      <div class="seg r3">
+        <div class="st">temp_allocation_pool</div>
+        <div class="sd">per-op scratch, reset after every kernel</div>
+        <div class="sz">4 KB</div>
+      </div>
+      <div class="seg r4">
+        <div class="st">Heap + main stack</div>
+        <div class="sd">CONFIG_HEAP_MEM_POOL_SIZE=32768, main thread stack 8 KiB</div>
+        <div class="sz">40 KB</div>
+      </div>
+      <div class="seg r4">
+        <div class="st">Free SRAM</div>
+        <div class="sd">headroom for bigger models or a second core image</div>
+        <div class="sz">~300 KB</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="key"><span class="chip" style="background:#e3ebf1;"></span> flash-resident (XIP)</div>
+    <div class="key"><span class="chip" style="background:#e6ece4;"></span> SRAM-resident</div>
+    <div class="key">sizes are measured from the demo build; verify with the console memory report</div>
+  </div>
+
+</div>
+</body>
+</html>
