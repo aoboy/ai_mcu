@@ -54,6 +54,7 @@ LED: onboard LED (CYW43 `led0` on the W, GPIO25 on the plain Pico 2).
 
 ```
 executorch-zephyr-pico2w/
+├── Makefile                      # model / build / flash / monitor / size / clean
 ├── app/                          # the Zephyr application
 │   ├── CMakeLists.txt            #   build glue: selective ops libs, .pte → C header
 │   ├── prj.conf                  #   Kconfig: ExecuTorch, C++17, pool sizes
@@ -82,32 +83,41 @@ executorch-zephyr-pico2w/
 
 Two virtualenvwrapper environments are used (already provisioned on this
 machine): `pytorch_cu132` (torch + executorch 1.5.1, for training/export)
-and `zephyr_rtos` (west, for building).
+and `zephyr_rtos` (west, for building). The `Makefile` (same target
+vocabulary as `projects/tflite-micro`) drives both — no `workon` needed:
 
 ```bash
 git clone <this-repo> executorch-zephyr-pico2w && cd executorch-zephyr-pico2w
 
 # 1. Verify the pre-provisioned environment (workspace ~/zephyrproject,
 #    Zephyr SDK, ExecuTorch module). No installs, no downloads.
-./scripts/01_setup_workspace.sh
+make verify
 
 # 2a. Real model: train on MNIST and export both .pte variants
-workon pytorch_cu132
-python python/train_mnist.py
-python python/export_mnist.py
+make model
 
 # 2b. (offline quickstart, no dataset) synthetic stroke digits instead:
-#     python python/train_mnist.py --dataset synthetic
-#     python python/export_mnist.py --dataset synthetic
+#     make model DATASET=synthetic
 
-# 3. Build: INT8/CMSIS-NN variant (west lives in the other env)
-deactivate && workon zephyr_rtos
-./scripts/02_build.sh cmsis
+# 3. Build: INT8/CMSIS-NN variant (VARIANT=portable is the default)
+make build VARIANT=cmsis
 
-# 4. Flash: hold BOOTSEL, plug USB, drop build-cmsis/zephyr/zephyr.uf2
-#    onto the RPI-RP2350 drive. Console on GP0/GP1 @ 115200.
-picocom -b 115200 /dev/ttyUSB0
+# 4. Flash: hold BOOTSEL, plug USB, `make flash` (or drop
+#    build-cmsis/zephyr/zephyr.uf2 onto the RPI-RP2350 drive).
+#    Console on GP0/GP1 @ 115200.
+make monitor
 ```
+
+The interactive equivalent, if you prefer the envs by hand:
+
+```bash
+workon pytorch_cu132   # model step:  python python/train_mnist.py && python python/export_mnist.py
+deactivate && workon zephyr_rtos   # firmware:  ./scripts/02_build.sh cmsis
+```
+
+Other targets: `size`, `rom_report`, `menuconfig`, `clean`, `distclean`
+(overrides: `VARIANT=portable|cmsis`, `DATASET=mnist|synthetic`,
+`BOARD=…`, `SERIAL_PORT=…` — see `make help`).
 
 Expected console output (shape; numbers depend on your model variant):
 
@@ -208,11 +218,12 @@ inside the graph — so the firmware input contract is identical
 ## Step 3 — Build (portable vs. CMSIS-NN)
 
 ```bash
-./scripts/02_build.sh portable   # float32, Portable Ops
-./scripts/02_build.sh cmsis      # INT8, CMSIS-NN
+make build VARIANT=portable   # float32, Portable Ops
+make build VARIANT=cmsis      # INT8, CMSIS-NN
 ```
 
-(Run from `workon zephyr_rtos`, or let the script activate it.)
+(Equivalent to `./scripts/02_build.sh portable|cmsis`, which the target
+wraps. Run from `workon zephyr_rtos`, or let it activate the env.)
 
 Equivalently, by hand:
 
