@@ -24,7 +24,7 @@ ai_mcu/
 | Project | What it is |
 |---|---|
 | [`projects/tflite-micro`](projects/tflite-micro/README.md) | TFLite-Micro on Zephyr: an int8 sine MLP on the Raspberry Pi Pico 2 W (RP2350), smoke-tested in QEMU without hardware. |
-| [`projects/executorch`](projects/executorch/README.md) | ExecuTorch on Zephyr: a PyTorch MNIST CNN exported to `.pte` (float32 Portable Ops **and** INT8 CMSIS-NN), executed from XIP flash on the same board. |
+| [`projects/executorch`](projects/executorch/README.md) | ExecuTorch on Zephyr: a PyTorch MNIST CNN exported to `.pte` (float32 Portable Ops **and** INT8 CMSIS-NN), executed from XIP flash on the same board; QEMU smoke test for the portable path. |
 
 ## Environments
 

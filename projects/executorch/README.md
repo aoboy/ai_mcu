@@ -99,10 +99,14 @@ make model
 # 2b. (offline quickstart, no dataset) synthetic stroke digits instead:
 #     make model DATASET=synthetic
 
-# 3. Build: INT8/CMSIS-NN variant (VARIANT=portable is the default)
+# 3. Smoke-test on QEMU first (fp32/portable path, no hardware needed)
+make qemu
+
+# 4. Build the INT8/CMSIS-NN variant for the board (VARIANT=portable is
+#    the default; the cmsis variant cannot run under QEMU)
 make build VARIANT=cmsis
 
-# 4. Flash: hold BOOTSEL, plug USB, `make flash` (or drop
+# 5. Flash: hold BOOTSEL, plug USB, `make flash` (or drop
 #    build-cmsis/zephyr/zephyr.uf2 onto the RPI-RP2350 drive).
 #    Console on GP0/GP1 @ 115200.
 make monitor
@@ -146,7 +150,12 @@ Expected:  class 7 ('7')
 ```
 
 after the four digits, a latency summary and the success LED pattern
-(three long blinks).
+(three long blinks). Under QEMU the same run prints `SUCCESS: ExecuTorch
+MNIST demo complete.` on the console — expect **slow** inferences
+(~2 s/digit under emulation) and, when the model was trained with
+`DATASET=synthetic`, poor accuracy: the synthetic quickstart model exists
+to exercise the toolchain, not to be accurate. Train on MNIST for the
+real 98–99 % classifier.
 
 ---
 
@@ -171,6 +180,14 @@ creates a venv, never runs `west init`, and never installs anything:
    `pytorch_cu132` env — the C++ runtime needs no host build (Zephyr builds
    it during `west build`), and the Python export tooling lives in
    `pytorch_cu132`, not in `zephyr_rtos`
+6. checks the **local module patch** (`west-manifests/patches/`) that makes
+   the op codegen work from a torch-less west venv: the module's codegen
+   imports `torchgen` (ships inside torch) with the build interpreter; the
+   patch lets every build pass `-DET_CODEGEN_PYTHON=<pytorch_cu132 python>`
+   and turns a failed import into a clear error instead of silently globbing
+   every Python file on the machine into the ninja graph. Applied with
+   `ET_APPLY_PATCHES=1 ./scripts/01_setup_workspace.sh` or
+   `./scripts/patch_module.sh apply` (idempotent; re-run after `west update`)
 
 Optional toggles: `ET_DO_UPDATE=1` (update missing modules only),
 `ET_DO_BLOBS=1` (`west blobs fetch hal_infineon` — CYW43 WiFi firmware;
@@ -218,12 +235,22 @@ inside the graph — so the firmware input contract is identical
 ## Step 3 — Build (portable vs. CMSIS-NN)
 
 ```bash
-make build VARIANT=portable   # float32, Portable Ops
-make build VARIANT=cmsis      # INT8, CMSIS-NN
+make qemu                     # hardware-free smoke test: qemu_x86, fp32 .pte
+make build VARIANT=portable   # float32, Portable Ops -> the Pico 2 W
+make build VARIANT=cmsis      # INT8, CMSIS-NN -> the Pico 2 W
 ```
 
 (Equivalent to `./scripts/02_build.sh portable|cmsis`, which the target
 wraps. Run from `workon zephyr_rtos`, or let it activate the env.)
+
+**The QEMU smoke test** builds the same app for `qemu_x86` and runs it with
+the float32 `.pte`: the LED code compiles out (no `led0` on the emulated
+board), the module skips the Cortex-M kernels on x86, and the console output
+proves a real ExecuTorch inference happened. The **cmsis variant cannot run
+here** — CMSIS-NN kernels are Cortex-M-only and the INT8 `.pte` dispatches to
+them, while QEMU emulates a plain x86 CPU. Same wrapper as tflite-micro
+(`scripts/run_qemu.sh`): Ctrl-C stops the emulator, the timeout bounds the
+run, and the grep proves the inference.
 
 Equivalently, by hand:
 

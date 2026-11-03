@@ -35,8 +35,14 @@ TORCH_PYTHON ?= $(shell { . $(ENV_SH) 2>/dev/null && ai_python "$$AI_ENV_TORCH";
 VARIANT      ?= portable
 BOARD        ?= rpi_pico2/rp2350a/m33_0/w
 BUILD_DIR    := $(APP_DIR)/build-$(VARIANT)
+PRISTINE     ?= auto
 SERIAL_PORT  ?= /dev/ttyUSB0
 SERIAL_BAUD  ?= 115200
+
+# QEMU smoke test (see the qemu target): same app, host-emulated x86 board.
+QEMU_BOARD   ?= qemu_x86
+QEMU_BUILD   ?= $(APP_DIR)/build-qemu
+QEMU_TIMEOUT ?= 30
 
 PTE_FP32     := $(APP_DIR)/app/model/mnist_cnn_fp32.pte
 PTE_INT8     := $(APP_DIR)/app/model/mnist_cnn_int8.pte
@@ -56,7 +62,7 @@ ZEPHYR_BIN   := $(WORKON_HOME)/$(ZEPHYR_ENV)/bin
 WEST         := cd $(WEST_TOPDIR) && export PATH="$(ZEPHYR_BIN):$$PATH" && west
 
 .DEFAULT_GOAL := help
-.PHONY: all verify model build flash flash_mcu monitor mcu_monitor size rom_report menuconfig clean distclean help
+.PHONY: all verify model build qemu flash flash_mcu monitor mcu_monitor size rom_report menuconfig clean distclean help
 
 all: build
 
@@ -71,14 +77,16 @@ verify:
 # Train TinyCNN and export BOTH deployments (float32 portable + INT8
 # CMSIS-NN) plus the embedded firmware test vectors. The checkpoint is
 # reused when present; DATASET only applies on the run that (re)trains —
-# `make distclean` first to switch datasets.
+# `make distclean` first to switch datasets. SKIP_CMSIS=1 exports only the
+# float32 .pte (enough for QEMU/portable) when the INT8 export cannot run
+# (it needs the arm-backend Python deps, e.g. tosa_serializer).
 model: $(EXPORT_STAMP)
 
 $(CKPT): $(TRAIN_PY) $(PYTHON_SRCS)
 	$(TORCH_PYTHON) $(TRAIN_PY) $(if $(DATASET),--dataset $(DATASET),)
 
 $(EXPORT_STAMP): $(CKPT) $(EXPORT_PY) $(PYTHON_SRCS)
-	$(TORCH_PYTHON) $(EXPORT_PY)
+	$(TORCH_PYTHON) $(EXPORT_PY) $(if $(SKIP_CMSIS),--skip-cmsis,)
 	@mkdir -p $(dir $(EXPORT_STAMP)) && touch $(EXPORT_STAMP)
 
 # -- Firmware (zephyr_rtos env) ---------------------------------------------------
@@ -87,6 +95,30 @@ $(EXPORT_STAMP): $(CKPT) $(EXPORT_PY) $(PYTHON_SRCS)
 # activates the zephyr_rtos env itself.
 build:
 	BOARD="$(BOARD)" "$(BUILD_SH)" "$(VARIANT)" "$(WEST_TOPDIR)"
+
+# QEMU smoke test -- float32/portable path only. Builds the app for
+# qemu_x86 and runs it under the same Ctrl-C-safe wrapper as tflite-micro;
+# the grep proves a real inference happened (no hardware needed).
+#
+# The cmsis variant CANNOT run here: the CMSIS-NN kernels are Cortex-M-only
+# (the ExecuTorch module builds cortex_m_kernels just on CONFIG_CPU_CORTEX_M,
+# and the INT8 .pte dispatches to them), while qemu_x86 is a plain x86 CPU.
+#
+# -DET_PTE_SECTION=.rodata: with the default network_model_sec section the
+# model becomes a linker ORPHAN on x86 (no linker script defines it there);
+# the image boots to SeaBIOS and hangs before the kernel banner. On the
+# Arm boards the same orphan lands in flash and works, so board builds keep
+# the upstream default.
+qemu: $(EXPORT_STAMP)
+	$(WEST) build -b $(QEMU_BOARD) -d $(QEMU_BUILD) -p $(PRISTINE) $(APP_DIR)/app -- \
+		-DET_PTE_FILE_PATH="$(PTE_FP32)" \
+		-DET_CODEGEN_PYTHON="$(TORCH_PYTHON)" \
+		-DET_PTE_SECTION=.rodata
+	@PATH="$(ZEPHYR_BIN):$$PATH" $(APP_DIR)/scripts/run_qemu.sh "$(WEST_TOPDIR)" "$(QEMU_BUILD)" "$(QEMU_TIMEOUT)" \
+		2>&1 | tee $(APP_DIR)/qemu_output.log
+	@grep -m1 "Predicted:" $(APP_DIR)/qemu_output.log \
+		&& echo "[qemu] ExecuTorch inference verified on $(QEMU_BOARD)" \
+		|| (echo "[qemu] FAILED: no inference output found" && exit 1)
 
 flash:
 	@test -f "$(BUILD_DIR)/zephyr/zephyr.uf2" || { \
@@ -136,7 +168,8 @@ menuconfig:
 	$(WEST) build -d "$(BUILD_DIR)" -t menuconfig
 
 clean:
-	rm -rf $(APP_DIR)/build-portable $(APP_DIR)/build-cmsis $(APP_DIR)/build
+	rm -rf $(APP_DIR)/build-portable $(APP_DIR)/build-cmsis $(QEMU_BUILD) $(APP_DIR)/build
+	rm -f $(APP_DIR)/qemu_output.log
 
 distclean: clean
 	rm -f $(PTE_FP32) $(PTE_INT8) $(CKPT)
@@ -146,6 +179,7 @@ help:
 	@echo "  make verify      check the pre-provisioned env/workspace (no installs)"
 	@echo "  make model       train + export fp32/int8 .pte ($(notdir $(TORCH_PYTHON)))"
 	@echo "  make build       west build VARIANT=$(VARIANT) -> $(notdir $(BUILD_DIR))/zephyr.uf2"
+	@echo "  make qemu        build + run on $(QEMU_BOARD) (fp32/portable smoke test)"
 	@echo "  make flash       west flash -r uf2 (board in BOOTSEL mode; alias: make flash_mcu)"
 	@echo "  make monitor     serial console on $(SERIAL_PORT) @ $(SERIAL_BAUD) baud"
 	@echo "                   (override: SERIAL_PORT=/dev/ttyUSB1 SERIAL_BAUD=115200)"
