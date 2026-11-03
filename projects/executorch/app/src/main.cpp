@@ -17,13 +17,18 @@
  * 3. Plans the runtime memory: one static "method allocator" pool backs the
  *    method metadata, the memory-planned activation buffers and the I/O
  *    tensors. One small "temp allocator" pool backs per-kernel scratch.
- * 4. For every embedded test digit (see test_digits.h):
- *       - renders it as ASCII art over the console
+ * 4. Runs the embedded-digit benchmark APP_DEMO_ROUNDS times (Kconfig,
+ *    default 10; overridable per build with -DCONFIG_APP_DEMO_ROUNDS=N or
+ *    `make ... ROUNDS=N`). Each round, for every embedded test digit (see
+ *    test_digits.h):
+ *       - renders it as ASCII art (first round only)
  *       - copies it into the input tensor (float32, [0..1], 1x1x28x28)
  *       - times method->execute() with k_cycle_get_32()
  *       - prints the logits, argmaxes, compares with the expected label
  *       - blinks the onboard LED (predicted class index + 1) times
- * 5. Prints a latency summary and gives a "success" LED blink pattern.
+ *    and prints a per-round summary (avg latency, accuracy).
+ * 5. Prints the aggregate summary over all rounds, blinks the success
+ *    pattern, releases the runtime objects (RAII) and quits.
  *
  * The model itself was exported on a host with python/export_mnist.py either
  * as float32 (executed by the Portable Ops kernels) or as INT8 with the
@@ -390,103 +395,152 @@ int main(void)
                          executorch::runtime::Error::Ok,
                      "set_input failed");
 
-        /* ---- 7. Inference loop over the embedded digits -------------------- */
+        /* ---- 7. Inference loop: ROUNDS rounds over the embedded digits ----
+         *
+         * Each round classifies every embedded digit once; the method, the
+         * planned buffers and the program are reused across rounds (that is
+         * the point of the static memory plan -- repeated inference needs no
+         * new allocations). After the last round the app prints the aggregate
+         * summary, releases everything and quits.
+         */
         const size_t num_outputs = method->outputs_size();
         float logits[16];
         ET_CHECK_MSG(num_outputs >= 1 && num_outputs <= 16,
                      "unexpected output count %zu", num_outputs);
 
-        uint32_t lat_us[TEST_DIGIT_COUNT];
-        size_t correct = 0;
+        const uint32_t rounds = (uint32_t)CONFIG_APP_DEMO_ROUNDS;
+        uint64_t grand_total_us = 0;   /* all executes, all rounds */
+        uint32_t min_us = UINT32_MAX, max_us = 0;
+        size_t grand_correct = 0;
+        size_t grand_executes = 0;
 
-        for (size_t k = 0; k < TEST_DIGIT_COUNT; k++) {
-                printk("\n=== Digit '%s' (expected class %u) ===\n",
-                       test_digit_names[k], test_digit_label[k]);
-                print_ascii_digit(test_digit_input[k]);
+        for (uint32_t round = 1; round <= rounds; round++) {
+                uint32_t lat_us[TEST_DIGIT_COUNT];
+                size_t correct = 0;
 
-                memcpy(input_data, test_digit_input[k],
-                       IMG_PIXELS * sizeof(float));
+                printk("\n========== Round %lu/%lu ==========\n",
+                       (unsigned long)round, (unsigned long)rounds);
 
-                uint32_t t0 = now_us();
-                auto status = method->execute();
-                uint32_t t1 = now_us();
-                lat_us[k] = t1 - t0;
+                for (size_t k = 0; k < TEST_DIGIT_COUNT; k++) {
+                        printk("\n=== Digit '%s' (expected class %u) ===\n",
+                               test_digit_names[k], test_digit_label[k]);
+                        /* The rendered digits never change; draw the ASCII
+                         * art only on the first round to keep the console
+                         * readable for the remaining rounds. */
+                        if (round == 1) {
+                                print_ascii_digit(test_digit_input[k]);
+                        }
 
-                if (status != executorch::runtime::Error::Ok) {
-                        ET_LOG(Error, "execute() failed: 0x%" PRIx32,
-                               (uint32_t)status);
-                        led_fail_forever();
-                        return 1;
+                        memcpy(input_data, test_digit_input[k],
+                               IMG_PIXELS * sizeof(float));
+
+                        uint32_t t0 = now_us();
+                        auto status = method->execute();
+                        uint32_t t1 = now_us();
+                        lat_us[k] = t1 - t0;
+
+                        if (status != executorch::runtime::Error::Ok) {
+                                ET_LOG(Error, "execute() failed: 0x%" PRIx32,
+                                       (uint32_t)status);
+                                led_fail_forever();
+                                return 1;
+                        }
+
+                        executorch::runtime::EValue out_value;
+                        ET_CHECK_MSG(method->get_outputs(&out_value, 1) ==
+                                             executorch::runtime::Error::Ok,
+                                     "get_outputs failed");
+                        executorch::aten::Tensor out = out_value.toTensor();
+                        ET_CHECK_MSG(out.scalar_type() ==
+                                             executorch::aten::ScalarType::Float,
+                                     "output is not float32 (got %s)",
+                                     executorch::runtime::toString(out.scalar_type()));
+
+                        const size_t n =
+                            out.numel() < 16 ? (size_t)out.numel() : 16;
+                        for (size_t i = 0; i < n; i++) {
+                                logits[i] = out.const_data_ptr<float>()[i];
+                        }
+
+                        printk("Logits:");
+                        for (size_t i = 0; i < n; i++) {
+                                printk(" %.1f", (double)logits[i]);
+                        }
+                        printk("\n");
+
+                        size_t pred = argmax(logits, n);
+                        bool ok = (pred == (size_t)test_digit_label[k]);
+                        correct += ok ? 1 : 0;
+
+                        /*
+                         * NOTE: test_digit_names[] names the EMBEDDED digits, not all
+                         * model classes, and the class index is NOT always the digit:
+                         *   - 4-class synthetic model: class index = position in the
+                         *     training class list ("0","1","4","7"), so class 2 is
+                         *     digit '4' and class 3 is digit '7';
+                         *   - 10-class MNIST model: class index == the digit itself.
+                         * Either way test_digit_label[] (generated together with the
+                         * vectors) already carries the correct expected index, and the
+                         * line below simply prints the raw argmax for inspection.
+                         */
+                        printk("Predicted: class %zu | %s (%lu us)\n", pred,
+                               ok ? "CORRECT" : "WRONG", (unsigned long)lat_us[k]);
+                        printk("Expected:  class %u ('%s')\n", test_digit_label[k],
+                               test_digit_names[k]);
+
+                        /* LED feedback: (predicted class index + 1) blinks, max 10. */
+                        led_blink((uint32_t)(pred % 10) + 1, 120, 120);
                 }
 
-                executorch::runtime::EValue out_value;
-                ET_CHECK_MSG(method->get_outputs(&out_value, 1) ==
-                                 executorch::runtime::Error::Ok,
-                             "get_outputs failed");
-                executorch::aten::Tensor out = out_value.toTensor();
-                ET_CHECK_MSG(out.scalar_type() ==
-                                     executorch::aten::ScalarType::Float,
-                             "output is not float32 (got %s)",
-                             executorch::runtime::toString(out.scalar_type()));
-
-                const size_t n =
-                    out.numel() < 16 ? (size_t)out.numel() : 16;
-                for (size_t i = 0; i < n; i++) {
-                        logits[i] = out.const_data_ptr<float>()[i];
+                /* Per-round summary + aggregate bookkeeping. */
+                uint32_t round_total = 0;
+                for (size_t k = 0; k < TEST_DIGIT_COUNT; k++) {
+                        round_total += lat_us[k];
                 }
+                printk("------------------------------------------\n");
+                printk("Round %lu/%lu summary: avg %lu us | accuracy %zu/%zu\n",
+                       (unsigned long)round, (unsigned long)rounds,
+                       (unsigned long)(round_total / TEST_DIGIT_COUNT),
+                       correct, (size_t)TEST_DIGIT_COUNT);
+                printk("------------------------------------------\n");
 
-                printk("Logits:");
-                for (size_t i = 0; i < n; i++) {
-                        printk(" %.1f", (double)logits[i]);
+                grand_total_us += round_total;
+                grand_correct += correct;
+                grand_executes += TEST_DIGIT_COUNT;
+                for (size_t k = 0; k < TEST_DIGIT_COUNT; k++) {
+                        if (lat_us[k] < min_us) {
+                                min_us = lat_us[k];
+                        }
+                        if (lat_us[k] > max_us) {
+                                max_us = lat_us[k];
+                        }
                 }
-                printk("\n");
-
-                size_t pred = argmax(logits, n);
-                bool ok = (pred == (size_t)test_digit_label[k]);
-                correct += ok ? 1 : 0;
-
-                /*
-                 * NOTE: test_digit_names[] names the EMBEDDED digits, not all
-                 * model classes, and the class index is NOT always the digit:
-                 *   - 4-class synthetic model: class index = position in the
-                 *     training class list ("0","1","4","7"), so class 2 is
-                 *     digit '4' and class 3 is digit '7';
-                 *   - 10-class MNIST model: class index == the digit itself.
-                 * Either way test_digit_label[] (generated together with the
-                 * vectors) already carries the correct expected index, and the
-                 * line below simply prints the raw argmax for inspection.
-                 */
-                printk("Predicted: class %zu | %s (%lu us)\n", pred,
-                       ok ? "CORRECT" : "WRONG", (unsigned long)lat_us[k]);
-                printk("Expected:  class %u ('%s')\n", test_digit_label[k],
-                       test_digit_names[k]);
-
-                /* LED feedback: (predicted class index + 1) blinks, max 10. */
-                led_blink((uint32_t)(pred % 10) + 1, 120, 120);
         }
 
-        /* ---- 8. Summary ----------------------------------------------------- */
-        uint32_t total = 0;
-        for (size_t k = 0; k < TEST_DIGIT_COUNT; k++) {
-                total += lat_us[k];
-        }
-        printk("\n------------------------------------------\n");
-        printk("Latency summary (method->execute only):\n");
-        for (size_t k = 0; k < TEST_DIGIT_COUNT; k++) {
-                printk("  '%s': %lu us\n", test_digit_names[k],
-                       (unsigned long)lat_us[k]);
-        }
-        printk("  average: %lu us\n",
-               (unsigned long)(total / TEST_DIGIT_COUNT));
-        printk("Accuracy: %zu/%zu\n", correct, (size_t)TEST_DIGIT_COUNT);
+        /* ---- 8. Aggregate summary ------------------------------------------- */
+        printk("\n==========================================\n");
+        printk("Aggregate over %lu rounds (%lu executes):\n",
+               (unsigned long)rounds, (unsigned long)grand_executes);
+        printk("  avg:    %llu us\n",
+               (unsigned long long)(grand_total_us / grand_executes));
+        printk("  min:    %lu us\n", (unsigned long)min_us);
+        printk("  max:    %lu us\n", (unsigned long)max_us);
+        printk("  accuracy: %zu/%zu\n", grand_correct, grand_executes);
         printk("Allocator after run: %zu / %u bytes\n",
                method_allocator.used_size(), (unsigned int)kMethodPoolSize);
-        printk("------------------------------------------\n");
+        printk("==========================================\n");
 
-        /* Success pattern: three long blinks, then the LED mirrors the
-         * average latency in ~10 ms units. Watch it breathe! */
+        /* ---- 9. Clean up and quit -------------------------------------------
+         * ExecuTorch v1.5 has no runtime_shutdown(); teardown is RAII. The
+         * method and program Results own their objects and release them when
+         * main() returns below (planned spans, input tensor and both
+         * allocators are static or scope-local and die with it). Log it so
+         * the teardown is visible on the console. */
+        /* Success pattern: three long blinks, then the LED goes dark. */
         led_blink(3, 400, 400);
-
-        ET_LOG(Info, "SUCCESS: ExecuTorch MNIST demo complete.");
+        led_set(false);
+        ET_LOG(Info, "Done after %lu rounds -- releasing method, program and "
+                     "loader (RAII at scope exit)",
+               (unsigned long)rounds);
         return 0;
 }

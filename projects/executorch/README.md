@@ -153,13 +153,16 @@ Predicted: class 7 | CORRECT (312 us)
 Expected:  class 7 ('7')
 ```
 
-after the four digits, a latency summary and the success LED pattern
-(three long blinks). Under QEMU the same run prints `SUCCESS: ExecuTorch
-MNIST demo complete.` on the console — expect **slow** inferences
-(~2 s/digit under emulation) and, when the model was trained with
-`DATASET=synthetic`, poor accuracy: the synthetic quickstart model exists
-to exercise the toolchain, not to be accurate. Train on MNIST for the
-real 98–99 % classifier.
+after the four digits, a per-round summary, the aggregate over all
+rounds and the success LED pattern (three long blinks). The demo runs
+**`ROUNDS` rounds** before quitting and releasing the runtime (Kconfig
+`APP_DEMO_ROUNDS`, default 10; `make build ROUNDS=3` or
+`make qemu ROUNDS=2` to change). The ASCII digits render on the first
+round only. Under QEMU the same run prints `Done after N rounds` on the
+console — expect **slow** inferences (~2 s/digit under emulation) and,
+when the model was trained with `DATASET=synthetic`, poor accuracy: the
+synthetic quickstart model exists to exercise the toolchain, not to be
+accurate. Train on MNIST for the real 98–99 % classifier.
 
 ---
 

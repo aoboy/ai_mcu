@@ -29,4 +29,15 @@ config EXECUTORCH_TEMP_ALLOCATOR_POOL_SIZE
 	  invocation. Used for temporary allocations during model execution
 	  (intermediate tensor calculations).
 
+config APP_DEMO_ROUNDS
+	int "Demo rounds before the app quits and cleans up"
+	default 10
+	range 1 10000
+	help
+	  How many times the app runs the full embedded-digit benchmark
+	  before printing the aggregate summary, releasing the runtime
+	  objects and returning. Overridable per build with
+	  -DCONFIG_APP_DEMO_ROUNDS=N, or `make qemu ROUNDS=N` /
+	  `make build ROUNDS=N`.
+
 endmenu

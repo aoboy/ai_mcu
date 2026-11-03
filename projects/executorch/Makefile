@@ -42,7 +42,13 @@ SERIAL_BAUD  ?= 115200
 # QEMU smoke test (see the qemu target): same app, host-emulated x86 board.
 QEMU_BOARD   ?= qemu_x86
 QEMU_BUILD   ?= $(APP_DIR)/build-qemu
-QEMU_TIMEOUT ?= 30
+# The demo runs ROUNDS rounds over the embedded digits (default 10); at
+# ~2 s/inference under emulation a full default run needs ~2 minutes.
+QEMU_TIMEOUT ?= 150
+# Number of demo rounds baked into the firmware (Kconfig
+# CONFIG_APP_DEMO_ROUNDS, default 10). Applies to `make qemu` and
+# `make build`; leave empty for the default.
+ROUNDS       ?=
 
 PTE_FP32     := $(APP_DIR)/app/model/mnist_cnn_fp32.pte
 PTE_INT8     := $(APP_DIR)/app/model/mnist_cnn_int8.pte
@@ -94,7 +100,7 @@ $(EXPORT_STAMP): $(CKPT) $(EXPORT_PY) $(PYTHON_SRCS)
 # Delegates to scripts/02_build.sh: picks the .pte matching VARIANT and
 # activates the zephyr_rtos env itself.
 build:
-	BOARD="$(BOARD)" "$(BUILD_SH)" "$(VARIANT)" "$(WEST_TOPDIR)"
+	BOARD="$(BOARD)" ROUNDS="$(ROUNDS)" "$(BUILD_SH)" "$(VARIANT)" "$(WEST_TOPDIR)"
 
 # QEMU smoke test -- float32/portable path only. Builds the app for
 # qemu_x86 and runs it under the same Ctrl-C-safe wrapper as tflite-micro;
@@ -113,7 +119,8 @@ qemu: $(EXPORT_STAMP)
 	$(WEST) build -b $(QEMU_BOARD) -d $(QEMU_BUILD) -p $(PRISTINE) $(APP_DIR)/app -- \
 		-DET_PTE_FILE_PATH="$(PTE_FP32)" \
 		-DET_CODEGEN_PYTHON="$(TORCH_PYTHON)" \
-		-DET_PTE_SECTION=.rodata
+		-DET_PTE_SECTION=.rodata \
+		$(if $(ROUNDS),-DCONFIG_APP_DEMO_ROUNDS=$(ROUNDS),)
 	@PATH="$(ZEPHYR_BIN):$$PATH" $(APP_DIR)/scripts/run_qemu.sh "$(WEST_TOPDIR)" "$(QEMU_BUILD)" "$(QEMU_TIMEOUT)" \
 		2>&1 | tee $(APP_DIR)/qemu_output.log
 	@grep -m1 "Predicted:" $(APP_DIR)/qemu_output.log \
@@ -190,4 +197,4 @@ help:
 	@echo "  make menuconfig  interactive Kconfig"
 	@echo "  make clean       remove build trees (keeps the trained model)"
 	@echo "  make distclean   also remove .pte models, checkpoint and export stamp"
-	@echo "Overrides: VARIANT=portable|cmsis  DATASET=mnist|synthetic  BOARD=...  SERIAL_PORT=..."
+	@echo "Overrides: VARIANT=portable|cmsis  DATASET=mnist|synthetic  ROUNDS=N (demo rounds, default 10)  BOARD=...  SERIAL_PORT=..."

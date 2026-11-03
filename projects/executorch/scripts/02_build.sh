@@ -75,7 +75,8 @@ if [ ! -x "${TORCH_PY}" ]; then
   exit 1
 fi
 west build -p -b "${BOARD}" "${REPO_DIR}/app" \
-  -d "${BUILD_DIR}" -- -DET_PTE_FILE_PATH="${PTE}" -DET_CODEGEN_PYTHON="${TORCH_PY}"
+  -d "${BUILD_DIR}" -- -DET_PTE_FILE_PATH="${PTE}" -DET_CODEGEN_PYTHON="${TORCH_PY}" \
+  ${ROUNDS:+-DCONFIG_APP_DEMO_ROUNDS="${ROUNDS}"}
 
 echo
 echo "Build OK."
