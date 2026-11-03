@@ -171,3 +171,12 @@ next steps (CMSIS-NN kernels, sensors, networking).
    `projects/*/…` so they cover future projects), tutorial paths and file
    maps, and the generated-file source comments in `src/sine_model.{h,cc}`
    (a `make header` regen now writes the new path itself).
+9. ML venv renamed after the project landed: `machine_learn` no longer
+   exists, the TensorFlow (CPU) env is now `tensorflow` (a third env,
+   `pytorch_cu132` with torch + executorch, serves projects/executorch).
+   Living docs updated (README, Makefile header, `generate_model.py`
+   docstring, tutorial); the `machine_learn` mentions above and in
+   `research/project-plan.txt` are kept as the historical record.
+   Environment names/paths now come from `tools/env.sh` (repo-wide single
+   source of truth); this file's "Environment facts" table is a snapshot of
+   execution time and is intentionally not rewritten.

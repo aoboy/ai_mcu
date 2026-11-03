@@ -20,7 +20,7 @@ console, tracing `sin(x)`: ~10k inferences/s under QEMU, ~1k/s on the board.
 ## Quick start
 
 ```sh
-workon machine_learn        # TF (CPU) for the training step
+workon tensorflow        # TF (CPU) for the training step
 make model header           # train -> int8 .tflite -> C array
 
 workon zephyr_rtos          # west + Zephyr SDK for firmware

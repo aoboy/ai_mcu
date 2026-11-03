@@ -31,7 +31,7 @@ sweeping the full curve forever, printing one inference per line.
 ## 1. Architecture at a glance
 
 ```
- PC (machine_learn venv)                    Target (Pico 2 W / RP2350)
+ PC (tensorflow venv)                    Target (Pico 2 W / RP2350)
 +----------------------------+             +---------------------------------+
 | generate_model.py          |   .tflite   |  Zephyr RTOS (Cortex-M33)       |
 |  train float MLP           | ----------> |  + tflite-micro module          |
@@ -66,14 +66,14 @@ interpreter and only the kernels your model uses.
 | Zephyr RTOS | `/home/agonga/zephyrproject/zephyr` | main, v4.4.0-9527 |
 | Zephyr SDK | `/home/agonga/zephyr-sdk-1.0.1` | arm toolchain + picotool |
 | west | `zephyr_rtos` virtualenv | v1.5.0 |
-| TensorFlow | `machine_learn` virtualenv | 2.21.0 (CPU) |
+| TensorFlow | `tensorflow` virtualenv | 2.21.0 (CPU) |
 | tflite-micro | `/home/agonga/zephyrproject/modules/tflite-micro` | zephyrproject-rtos fork |
 
 Virtual environments (virtualenvwrapper):
 
 ```
 workon zephyr_rtos      # enter: west, Zephyr build tooling
-workon machine_learn    # enter: TensorFlow (CPU already installed)
+workon tensorflow    # enter: TensorFlow (CPU already installed)
 deactivate              # leave either environment
 ```
 
@@ -186,7 +186,7 @@ converter observes a **representative dataset** and picks activation ranges.
 ### Run it
 
 ```
-workon machine_learn
+workon tensorflow
 cd /home/aimlrn/ai_mcu/projects/tflite-micro
 make model            # = python model/generate_model.py  (800 epochs)
 ```
@@ -602,7 +602,7 @@ zephyrproject/zephyr/submanifests/optional.yaml     # path: modules/tflite-micro
 
 | Target | Effect |
 |---|---|
-| `make model` | train + int8-quantize (machine_learn venv python) |
+| `make model` | train + int8-quantize (tensorflow venv python) |
 | `make header` | embed `.tflite` into `src/sine_model_data.cc` |
 | `make build` | west build for `rpi_pico2/rp2350a/m33_0/w` -> `zephyr.uf2` |
 | `make qemu` | build + run on `qemu_x86`, verify console output |

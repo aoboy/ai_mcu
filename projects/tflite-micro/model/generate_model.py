@@ -12,7 +12,7 @@ application's output locations:
 
 Run it with the machine-learning virtualenv (TensorFlow CPU):
 
-    workon machine_learn        # or: make model
+    workon tensorflow        # or: make model
     python model/generate_model.py
 
 Then embed the result into C++ sources:
