@@ -1,0 +1,19 @@
+# ExecuTorch Zephyr module: pulled from the pytorch/executorch repository and
+# mounted under modules/lib/executorch so Zephyr's module discovery finds its
+# zephyr/ directory (Kconfig + CMake glue) automatically.
+#
+# Install into the ZEPHYR_BASE of your workspace:
+#   cp west-manifests/executorch.yaml <workspace>/zephyr/submanifests/
+#   west update
+#
+# This mirrors the official upstream instructions in
+# docs.pytorch.org/executorch/stable/zephyr_alif_tutorial.html (Step 2),
+# which also explains the project-filter used in scripts/01_setup_workspace.sh:
+#   west config manifest.project-filter -- \
+#       -.*,+zephyr,+executorch,+cmsis,+cmsis_6,+cmsis-nn,+hal_infineon
+manifest:
+  projects:
+    - name: executorch
+      url: https://github.com/pytorch/executorch
+      revision: main          # pin a tag (e.g. v1.5.1) for reproducible builds
+      path: modules/lib/executorch

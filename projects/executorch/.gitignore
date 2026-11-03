@@ -1,0 +1,17 @@
+# build artifacts
+build/
+build-*/
+*.elf
+*.uf2
+*.hex
+*.bin
+# models / checkpoints (regenerate via scripts)
+app/model/*.pte
+python/mnist_cnn_state.pt
+# python
+__pycache__/
+*.pyc
+.venv/
+# editors
+.vscode/
+.idea/
