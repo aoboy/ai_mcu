@@ -78,8 +78,8 @@ verify:
 # CMSIS-NN) plus the embedded firmware test vectors. The checkpoint is
 # reused when present; DATASET only applies on the run that (re)trains —
 # `make distclean` first to switch datasets. SKIP_CMSIS=1 exports only the
-# float32 .pte (enough for QEMU/portable) when the INT8 export cannot run
-# (it needs the arm-backend Python deps, e.g. tosa_serializer).
+# float32 .pte (enough for QEMU/portable) — handy when the INT8 export
+# deps are missing from the torch env (it needs tosa-tools, see README).
 model: $(EXPORT_STAMP)
 
 $(CKPT): $(TRAIN_PY) $(PYTHON_SRCS)

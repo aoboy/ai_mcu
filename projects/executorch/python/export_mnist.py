@@ -57,7 +57,14 @@ MODEL_OUT_DIR = os.path.normpath(os.path.join(_HERE, "..", "app", "model"))
 # Dataset access (for calibration data and embedded test digits)
 # ---------------------------------------------------------------------------
 def calibration_data(dataset: str, n: int = 256):
-    """Representative samples for the PT2E observers."""
+    """Representative samples for the PT2E observers.
+
+    Each sample MUST be batched -- (1, 1, 28, 28), matching the traced
+    graph exactly. Unbatched (1, 28, 28) tensors run the convs in
+    unbatched mode and then torch.flatten(x, 1) yields (16, 25) instead
+    of (1, 400), crashing the Linear (the fp32 export never notices: it
+    traces with the batched example_input).
+    """
     if dataset == "mnist":
         import torchvision
         import torchvision.transforms as T
@@ -67,12 +74,14 @@ def calibration_data(dataset: str, n: int = 256):
             download=True, transform=T.ToTensor(),
         )
         idx = torch.linspace(0, len(ds) - 1, n).long()
-        return [ds[i][0] for i in idx]  # each: (1, 28, 28) float [0..1]
+        # ds[i][0] is (1, 28, 28); unsqueeze to a batch of one.
+        return [ds[i][0].unsqueeze(0) for i in idx]
 
     px, _, _ = synth_data.synth_dataset(n_per_class=64)
     x = torch.tensor(px, dtype=torch.float32).view(-1, 1, 28, 28)
     idx = torch.linspace(0, len(x) - 1, min(n, len(x))).long()
-    return [x[i] for i in idx]
+    # x[i] is (1, 28, 28); keep the batch dim via slicing.
+    return [x[i:i + 1] for i in idx]
 
 
 def test_digits(dataset: str, names):
@@ -159,10 +168,19 @@ def export_int8_cmsis(model, calib, output_path: str):
     )
 
     logger.info("Applying Cortex-M passes (target: Cortex-M33)...")
+    # executorch 1.5.1 API (matches the upstream v1.5.1 pico2 example): the
+    # manager takes the ExportedProgram at construction and runs the passes
+    # itself; edge_program.transform(pass_manager) is the main-branch API.
     pass_manager = CortexMPassManager(
-        target_config=CortexMTargetConfig(cpu=CortexM.M33)
+        edge_program.exported_program(),
+        target_config=CortexMTargetConfig(cpu=CortexM.M33),
     )
-    edge_program = edge_program.transform(pass_manager)
+    transformed_ep = pass_manager.transform()
+
+    # Re-wrap the transformed program for to_executorch().
+    edge_program = to_edge(
+        transformed_ep, compile_config=cortex_m_edge_compile_config()
+    )
 
     logger.info("Serializing .pte...")
     exec_program = edge_program.to_executorch(

@@ -222,6 +222,11 @@ Two dataset modes:
 `python/export_mnist.py` (run in the `pytorch_cu132` env) then produces
 **both** deployments:
 
+> The INT8 path needs the Arm TOSA serializer in the export env:
+> `pip install tosa-tools` (installed 2026.8.0 here — the upstream pin
+> 2026.5.0 has no wheel for Python 3.14). Without it only the float32
+> `.pte` exports (`make model SKIP_CMSIS=1`).
+
 | File | Export path | Runtime kernels |
 | --- | --- | --- |
 | `app/model/mnist_cnn_fp32.pte` | `torch.export → to_edge → to_executorch` | Portable Ops (reference C++) |
