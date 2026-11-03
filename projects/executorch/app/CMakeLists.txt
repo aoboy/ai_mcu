@@ -94,6 +94,13 @@ endif()
 include(${EXECUTORCH_DIR}/tools/cmake/Utils.cmake)
 include(${EXECUTORCH_DIR}/backends/arm/cmake/ArmRunnerUtils.cmake)
 
+# NOTE: the module's op codegen imports torchgen (ships inside torch) with
+# the build interpreter. The west/build venv has no torch, so every build
+# passes -DET_CODEGEN_PYTHON=<pytorch_cu132 python> — supported by the local
+# module patch west-manifests/patches/0001-*.patch (apply with
+# scripts/patch_module.sh; it fails with a clear message if the patch is
+# missing, instead of globbing every Python file into the build graph).
+
 # Ensure the portable kernels target exists even when portable ops are
 # disabled globally (CONFIG_EXECUTORCH_BUILD_PORTABLE_OPS=n).
 if(NOT TARGET portable_kernels)

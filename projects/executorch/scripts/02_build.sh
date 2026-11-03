@@ -27,6 +27,7 @@ if [ -f "${REPO_DIR}/../../tools/env.sh" ]; then
 fi
 WS="${2:-${AI_WEST_TOPDIR:-$HOME/zephyrproject}}"
 ENV_NAME="${ENV_NAME:-${AI_ENV_ZEPHYR:-zephyr_rtos}}"
+PYTORCH_ENV="${PYTORCH_ENV:-${AI_ENV_TORCH:-pytorch_cu132}}"
 WORKON_HOME="${WORKON_HOME:-${AI_WORKON_HOME:-$HOME/.virtualenvs}}"
 BOARD="${BOARD:-rpi_pico2/rp2350a/m33_0/w}"
 BUILD_DIR="${REPO_DIR}/build-${VARIANT}"
@@ -63,8 +64,18 @@ if ! command -v west >/dev/null; then
 fi
 
 echo "==> west build (${VARIANT}) board=${BOARD}"
+# ET_CODEGEN_PYTHON: the ExecuTorch op codegen imports torchgen, which ships
+# inside torch; the west/build env does not have it. Requires the module
+# patch (scripts/patch_module.sh). See app/CMakeLists.txt and
+# west-manifests/patches/.
+TORCH_PY="${WORKON_HOME}/${PYTORCH_ENV}/bin/python"
+if [ ! -x "${TORCH_PY}" ]; then
+  echo "torch env python not found: ${TORCH_PY}" >&2
+  echo "needed for the model codegen step (tools/env.sh: ${PYTORCH_ENV})" >&2
+  exit 1
+fi
 west build -p -b "${BOARD}" "${REPO_DIR}/app" \
-  -d "${BUILD_DIR}" -- -DET_PTE_FILE_PATH="${PTE}"
+  -d "${BUILD_DIR}" -- -DET_PTE_FILE_PATH="${PTE}" -DET_CODEGEN_PYTHON="${TORCH_PY}"
 
 echo
 echo "Build OK."

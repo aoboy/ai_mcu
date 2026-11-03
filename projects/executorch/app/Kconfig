@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Application-level Kconfig (out-of-tree app). Without this file the
+# CONFIG_EXECUTORCH_*_POOL_SIZE symbols assigned in prj.conf are undefined:
+# they are NOT part of the ExecuTorch module's Kconfig -- the upstream
+# hello-executorch sample defines them in its own Kconfig, which does not
+# apply to an out-of-tree application. Mirrors that sample's definitions.
+
+source "Kconfig.zephyr"
+
+menu "ExecuTorch MNIST demo configuration"
+
+config EXECUTORCH_METHOD_ALLOCATOR_POOL_SIZE
+	int "Method allocator pool size in bytes"
+	default 16384
+	depends on EXECUTORCH
+	help
+	  Size of the static pool backing method metadata, the memory-planned
+	  activation buffers and the I/O tensors. The sample default (16 KB)
+	  suits tiny models; prj.conf raises it to 128 KiB for the TinyCNN.
+	  Raise it if load_method() reports MemoryAllocationFailed.
+
+config EXECUTORCH_TEMP_ALLOCATOR_POOL_SIZE
+	int "Temporary allocator pool size in bytes"
+	default 2048
+	depends on EXECUTORCH
+	help
+	  Size of the per-op scratch pool, reset after every kernel
+	  invocation. Used for temporary allocations during model execution
+	  (intermediate tensor calculations).
+
+endmenu

@@ -1,0 +1,83 @@
+diff --git a/tools/cmake/Codegen.cmake b/tools/cmake/Codegen.cmake
+index 3f1ef2bf2..651385091 100644
+--- a/tools/cmake/Codegen.cmake
++++ b/tools/cmake/Codegen.cmake
+@@ -12,6 +12,15 @@
+ # arguments.
+ include(${EXECUTORCH_ROOT}/tools/cmake/Utils.cmake)
+ 
++# ET_CODEGEN_PYTHON: interpreter that runs the op-codegen commands below.
++# They import torchgen, which ships inside the torch wheel; when the Zephyr
++# build python (PYTHON_EXECUTABLE) has no torch, pass
++# -DET_CODEGEN_PYTHON=<torch venv python>. Without a torch-capable
++# interpreter the torchgen probe fails and the sources glob degenerates.
++if(NOT DEFINED ET_CODEGEN_PYTHON)
++  set(ET_CODEGEN_PYTHON "${PYTHON_EXECUTABLE}")
++endif()
++
+ function(gen_selected_ops)
+   set(arg_names LIB_NAME OPS_SCHEMA_YAML ROOT_OPS INCLUDE_ALL_OPS
+                 OPS_FROM_MODEL DTYPE_SELECTIVE_BUILD
+@@ -43,7 +52,7 @@ function(gen_selected_ops)
+ 
+   file(GLOB_RECURSE _codegen_tools_srcs "${EXECUTORCH_ROOT}/codegen/tools/*.py")
+ 
+-  set(_gen_oplist_command "${PYTHON_EXECUTABLE}" -m codegen.tools.gen_oplist
++  set(_gen_oplist_command "${ET_CODEGEN_PYTHON}" -m codegen.tools.gen_oplist
+                           --output_path=${_oplist_yaml}
+   )
+ 
+@@ -74,7 +83,7 @@ function(gen_selected_ops)
+   if(GEN_DTYPE_SELECTIVE_BUILD)
+     set(_opvariant_h ${_out_dir}/selected_op_variants.h)
+     set(_gen_opvariant_command
+-        "${PYTHON_EXECUTABLE}" -m codegen.tools.gen_selected_op_variants
++        "${ET_CODEGEN_PYTHON}" -m codegen.tools.gen_selected_op_variants
+         --yaml-file=${_oplist_yaml} --output-dir=${_out_dir}/
+     )
+     message("Command - ${_gen_opvariant_command}")
+@@ -132,7 +141,7 @@ function(gen_selected_max_kernel_num)
+   endforeach()
+ 
+   set(_gen_command
+-      "${PYTHON_EXECUTABLE}" -m codegen.tools.gen_max_kernel_num ${_yaml_args}
++      "${ET_CODEGEN_PYTHON}" -m codegen.tools.gen_max_kernel_num ${_yaml_args}
+       --prim-ops-source=${_prim_ops_src} --output-path=${_header}
+   )
+ 
+@@ -190,7 +199,7 @@ function(gen_selected_prim_ops_lib)
+         ${EXECUTORCH_ROOT}/codegen/tools/gen_selected_prim_ops.py
+     )
+     set(_gen_selected_prim_ops_command
+-        "${PYTHON_EXECUTABLE}" -m codegen.tools.gen_selected_prim_ops
++        "${ET_CODEGEN_PYTHON}" -m codegen.tools.gen_selected_prim_ops
+         --op-selection-yaml-path=${GEN_SELECTED_OPS_YAML}
+         --output-dir=${_out_dir}
+     )
+@@ -261,7 +270,7 @@ function(generate_bindings_for_kernels)
+   # Executorch runtime.
+   execute_process(
+     COMMAND
+-      "${PYTHON_EXECUTABLE}" -c
++      "${ET_CODEGEN_PYTHON}" -c
+       "import torchgen;import os; print(os.path.dirname(torchgen.__file__))"
+     OUTPUT_VARIABLE torchgen-out
+     ERROR_VARIABLE torchgen-out-error
+@@ -272,7 +281,7 @@ function(generate_bindings_for_kernels)
+   file(GLOB_RECURSE _torchgen_srcs "${torchgen-out}/*.py")
+   # Not using module executorch.codegen.gen because it's not installed yet.
+   set(_gen_command
+-      "${PYTHON_EXECUTABLE}" -m codegen.gen
++      "${ET_CODEGEN_PYTHON}" -m codegen.gen
+       --source-path=${EXECUTORCH_ROOT}/codegen --install-dir=${_out_dir}
+       --tags-path=${torchgen-out}/packaged/ATen/native/tags.yaml
+       --aten-yaml-path=${torchgen-out}/packaged/ATen/native/native_functions.yaml
+@@ -509,7 +518,7 @@ function(merge_yaml)
+   message(STATUS "  OUTPUT_DIR: ${GEN_OUTPUT_DIR}")
+ 
+   set(_gen_command
+-      "${PYTHON_EXECUTABLE}" -m codegen.tools.merge_yaml
++      "${ET_CODEGEN_PYTHON}" -m codegen.tools.merge_yaml
+       --functions_yaml_path=${GEN_FUNCTIONS_YAML}
+       --fallback_yaml_path=${GEN_FALLBACK_YAML} --output_dir=${GEN_OUTPUT_DIR}
+   )

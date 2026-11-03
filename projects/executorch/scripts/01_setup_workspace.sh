@@ -132,6 +132,17 @@ else
   exit 1
 fi
 
+# This project carries a small local patch for the module (torch-less build
+# venvs: the op codegen needs a torch-equipped interpreter). Applies
+# idempotently; west update may drop it, so it is re-checked on every run.
+echo "==> Local module patch"
+if [ "${ET_APPLY_PATCHES:-0}" = "1" ]; then
+  "${REPO_DIR}/scripts/patch_module.sh" apply
+else
+  "${REPO_DIR}/scripts/patch_module.sh" check \
+    || echo "    fix with: ET_APPLY_PATCHES=1 $0   (or scripts/patch_module.sh apply)" >&2
+fi
+
 if [ "${ET_DO_BLOBS:-0}" = "1" ]; then
   echo "==> WiFi blobs for the Pico 2 W (optional, only for WiFi features)"
   west blobs fetch hal_infineon || echo "    (skipped: not fatal for this demo)"

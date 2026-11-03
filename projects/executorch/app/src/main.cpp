@@ -128,8 +128,9 @@
 #define ET_ARM_METHOD_ALLOCATOR_POOL_SIZE (128 * 1024)
 #endif
 static const size_t kMethodPoolSize = ET_ARM_METHOD_ALLOCATOR_POOL_SIZE;
-static alignas(16) unsigned char
-    method_allocation_pool[ET_ARM_METHOD_ALLOCATOR_POOL_SIZE];
+static unsigned char
+    method_allocation_pool[ET_ARM_METHOD_ALLOCATOR_POOL_SIZE]
+    __attribute__((aligned(16)));
 
 #if !defined(ET_ARM_BAREMETAL_SCRATCH_TEMP_ALLOCATOR_POOL_SIZE)
 #define ET_ARM_BAREMETAL_SCRATCH_TEMP_ALLOCATOR_POOL_SIZE 4096
@@ -285,9 +286,12 @@ int main(void)
          *                      these spans
          * temp_allocator    -> small per-op scratch pool
          */
-        executorch::runtime::ArmMemoryAllocator method_allocator(
+        /* ArmMemoryAllocator is declared at global scope in
+         * examples/arm/common/arm_memory_allocator.h (not inside
+         * executorch::runtime). */
+        ArmMemoryAllocator method_allocator(
             (uint32_t)kMethodPoolSize, method_allocation_pool);
-        executorch::runtime::ArmMemoryAllocator temp_allocator(
+        ArmMemoryAllocator temp_allocator(
             (uint32_t)kTempPoolSize, temp_allocation_pool);
 
         auto method_meta_result = program->method_meta(*method_name);
@@ -366,11 +370,12 @@ int main(void)
         /*
          * TensorImpl stores POINTERS to the sizes/dim-order arrays, so the
          * arrays must outlive the TensorImpl -- use static storage, not
-         * compound literals.
+         * compound literals. The ctor takes mutable pointers, so the arrays
+         * cannot be constexpr (const would not convert).
          */
-        static constexpr executorch::aten::TensorImpl::SizesType
+        static executorch::aten::TensorImpl::SizesType
             kInputSizes[4] = {1, 1, IMG_ROWS, IMG_COLS};
-        static constexpr executorch::aten::TensorImpl::DimOrderType
+        static executorch::aten::TensorImpl::DimOrderType
             kInputDimOrder[4] = {0, 1, 2, 3};
 
         executorch::aten::TensorImpl input_impl(
