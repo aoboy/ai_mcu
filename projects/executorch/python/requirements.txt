@@ -1,0 +1,22 @@
+# Host-side Python tooling (training + export only; NOT needed to build the
+# firmware itself -- the Zephyr build compiles the ExecuTorch runtime from the
+# west workspace module).
+#
+# Versions are the ones the official ExecuTorch v1.5.x docs are verified
+# against; newer torch/executorch combos usually work but check
+# https://docs.pytorch.org/executorch/stable if you hit export issues.
+#
+# Recommended install path (inside the Zephyr workspace, so tool versions
+# match the runtime you link against):
+#   cd <workspace>/modules/lib/executorch
+#   git submodule sync && git submodule update --init --recursive
+#   ./install_executorch.sh
+#
+# Alternatively, plain pip:
+#   pip install -r requirements.txt
+
+torch>=2.8
+torchvision
+executorch>=1.5.1
+torchao>=1.0
+numpy
