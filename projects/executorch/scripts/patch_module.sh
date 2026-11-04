@@ -17,7 +17,12 @@
 # refuses to double-apply).
 #
 # Usage:
-#   ./scripts/patch_module.sh [apply|check|status]      (default: apply)
+#   ./scripts/patch_module.sh [apply|check|status|unapply]   (default: apply)
+#
+# west update refuses to touch a checkout with local modifications, so
+# updating the module requires the dance:
+#   ./scripts/patch_module.sh unapply && west update <projects> \
+#     && ./scripts/patch_module.sh apply
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -70,6 +75,23 @@ case "${cmd}" in
       else
         echo "PATCH CONFLICTS with the current module checkout: $(basename "${p}")" >&2
         echo "upstream (executorch@main) likely changed; update the patch in west-manifests/patches/" >&2
+        exit 1
+      fi
+    done
+    ;;
+  unapply)
+    # Reverse the patches so west update can move the checkout. Refuses to
+    # run when OTHER uncommitted changes are present (they would be lost by
+    # a later hard reset; we only ever revert what our patches touched).
+    for p in "${PATCHES_DIR}"/*.patch; do
+      if git -C "${MODULE}" apply --check "${p}" 2>/dev/null; then
+        echo "not applied: $(basename "${p}")"
+      elif git -C "${MODULE}" apply --reverse --check "${p}" 2>/dev/null; then
+        git -C "${MODULE}" apply --reverse "${p}"
+        echo "unapplied: $(basename "${p}")"
+      else
+        echo "cannot unapply: $(basename "${p}") conflicts with the working tree" >&2
+        echo "resolve manually in ${MODULE} (git diff / git checkout -- <file>)" >&2
         exit 1
       fi
     done

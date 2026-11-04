@@ -194,7 +194,10 @@ creates a venv, never runs `west init`, and never installs anything:
    and turns a failed import into a clear error instead of silently globbing
    every Python file on the machine into the ninja graph. Applied with
    `ET_APPLY_PATCHES=1 ./scripts/01_setup_workspace.sh` or
-   `./scripts/patch_module.sh apply` (idempotent; re-run after `west update`)
+   `./scripts/patch_module.sh apply` (idempotent; re-run after `west update`).
+   Since the patch is an uncommitted working-tree change, `west update`
+   refuses to move the module — update with the dance:
+   `./scripts/patch_module.sh unapply && west update && ./scripts/patch_module.sh apply`
 7. installs the **host flatcc compiler once** into
    `<workspace>/tools/flatcc` (`scripts/install_flatcc.sh`, idempotent):
    the module otherwise reruns its `BUILD_ALWAYS flatcc_ep` external
