@@ -44,7 +44,7 @@ QEMU_BOARD   ?= qemu_x86
 QEMU_BUILD   ?= $(APP_DIR)/build-qemu
 # The demo runs ROUNDS rounds over the embedded digits (default 10); at
 # ~2 s/inference under emulation a full default run needs ~2 minutes.
-QEMU_TIMEOUT ?= 150
+QEMU_TIMEOUT ?= 60
 # Number of demo rounds baked into the firmware (Kconfig
 # CONFIG_APP_DEMO_ROUNDS, default 10). Applies to `make qemu` and
 # `make build`; leave empty for the default.
