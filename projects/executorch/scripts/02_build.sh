@@ -74,9 +74,19 @@ if [ ! -x "${TORCH_PY}" ]; then
   echo "needed for the model codegen step (tools/env.sh: ${PYTORCH_ENV})" >&2
   exit 1
 fi
+# Prebuilt host flatcc (installed once by scripts/install_flatcc.sh into the
+# west workspace): the module then skips its BUILD_ALWAYS flatcc_ep external
+# project, which otherwise reruns a host cmake pass on every build. The
+# binary is only consumed by devtools/etdump, which these builds disable.
+FLATCC_BIN="${WS}/tools/flatcc/bin/flatcc"
+FLATCC_ARG=""
+if [ -x "${FLATCC_BIN}" ]; then
+  FLATCC_ARG="-DFLATCC_EXECUTABLE=${FLATCC_BIN}"
+  echo "==> Using prebuilt host flatcc: ${FLATCC_BIN}"
+fi
 west build -p -b "${BOARD}" "${REPO_DIR}/app" \
   -d "${BUILD_DIR}" -- -DET_PTE_FILE_PATH="${PTE}" -DET_CODEGEN_PYTHON="${TORCH_PY}" \
-  ${ROUNDS:+-DCONFIG_APP_DEMO_ROUNDS="${ROUNDS}"}
+  ${ROUNDS:+-DCONFIG_APP_DEMO_ROUNDS="${ROUNDS}"} ${FLATCC_ARG}
 
 echo
 echo "Build OK."

@@ -156,25 +156,16 @@ if(TARGET cortex_m_kernels)
   list(APPEND _executorch_zephyr_selected_ops_libs zephyr_cortex_m_ops_lib)
 endif()
 
-# HACK (same as upstream): the executorch CMake scripts generate a relative
-# include path ("../") that does not resolve in an out-of-tree module build,
-# so force the parent directory of executorch into the global include path.
-set(_local_flatcc_root ${CMAKE_BINARY_DIR}/flatcc_src)
-if(NOT EXISTS ${_local_flatcc_root}/CMakeLists.txt)
-  file(MAKE_DIRECTORY ${_local_flatcc_root})
-  execute_process(
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${EXECUTORCH_DIR}/third-party/flatcc ${_local_flatcc_root}
-  )
-endif()
-set(EXECUTORCH_FLATCC_SOURCE_ROOT
-    ${_local_flatcc_root}
-    CACHE PATH "" FORCE
-)
-set(EXECUTORCH_FLATCC_INSTALL_ROOT
-    ${_local_flatcc_root}
-    CACHE PATH "" FORCE
-)
+# flatcc: the in-tree flatccrt runtime library is built by the module from
+# third-party/flatcc like any other CMake target. The HOST flatcc compiler
+# is prebuilt once into <workspace>/tools/flatcc by
+# scripts/install_flatcc.sh; the build scripts pass -DFLATCC_EXECUTABLE so
+# the module skips its BUILD_ALWAYS flatcc_ep external project (the binary
+# it produces is only consumed by devtools/etdump, which these builds do
+# not enable). Without the prebuilt binary the module falls back to
+# building flatcc_ep every time -- older executorch versions let apps
+# point EXECUTORCH_FLATCC_SOURCE_ROOT/INSTALL_ROOT at a custom checkout,
+# but this module version does not read them.
 
 set(app_sources
     src/main.cpp

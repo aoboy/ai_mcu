@@ -195,6 +195,14 @@ creates a venv, never runs `west init`, and never installs anything:
    every Python file on the machine into the ninja graph. Applied with
    `ET_APPLY_PATCHES=1 ./scripts/01_setup_workspace.sh` or
    `./scripts/patch_module.sh apply` (idempotent; re-run after `west update`)
+7. installs the **host flatcc compiler once** into
+   `<workspace>/tools/flatcc` (`scripts/install_flatcc.sh`, idempotent):
+   the module otherwise reruns its `BUILD_ALWAYS flatcc_ep` external
+   project — a full host CMake pass — on *every* firmware build, for a
+   binary these builds never use (it only feeds `devtools/etdump`). With
+   the prebuilt binary the builds pass the module's own
+   `-DFLATCC_EXECUTABLE` hook and skip that step entirely. The in-tree
+   `flatccrt` runtime that gets linked into the firmware is unaffected.
 
 Optional toggles: `ET_DO_UPDATE=1` (update missing modules only),
 `ET_DO_BLOBS=1` (`west blobs fetch hal_infineon` — CYW43 WiFi firmware;

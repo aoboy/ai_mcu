@@ -67,6 +67,11 @@ PYTHON_SRCS  := $(APP_DIR)/python/model.py $(APP_DIR)/python/synth_data.py \
 ZEPHYR_BIN   := $(WORKON_HOME)/$(ZEPHYR_ENV)/bin
 WEST         := cd $(WEST_TOPDIR) && export PATH="$(ZEPHYR_BIN):$$PATH" && west
 
+# Prebuilt host flatcc (installed once by scripts/install_flatcc.sh): when
+# present, builds pass -DFLATCC_EXECUTABLE and the module skips its
+# BUILD_ALWAYS flatcc_ep external project.
+FLATCC       := $(WEST_TOPDIR)/tools/flatcc/bin/flatcc
+
 .DEFAULT_GOAL := help
 .PHONY: all verify model build qemu flash flash_mcu monitor mcu_monitor size rom_report menuconfig clean distclean help
 
@@ -120,7 +125,8 @@ qemu: $(EXPORT_STAMP)
 		-DET_PTE_FILE_PATH="$(PTE_FP32)" \
 		-DET_CODEGEN_PYTHON="$(TORCH_PYTHON)" \
 		-DET_PTE_SECTION=.rodata \
-		$(if $(ROUNDS),-DCONFIG_APP_DEMO_ROUNDS=$(ROUNDS),)
+		$(if $(ROUNDS),-DCONFIG_APP_DEMO_ROUNDS=$(ROUNDS),) \
+		$(if $(wildcard $(FLATCC)),-DFLATCC_EXECUTABLE=$(FLATCC),)
 	@PATH="$(ZEPHYR_BIN):$$PATH" $(APP_DIR)/scripts/run_qemu.sh "$(WEST_TOPDIR)" "$(QEMU_BUILD)" "$(QEMU_TIMEOUT)" \
 		2>&1 | tee $(APP_DIR)/qemu_output.log
 	@grep -m1 "Predicted:" $(APP_DIR)/qemu_output.log \

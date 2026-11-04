@@ -143,6 +143,12 @@ else
     || echo "    fix with: ET_APPLY_PATCHES=1 $0   (or scripts/patch_module.sh apply)" >&2
 fi
 
+# One-time host flatcc install into <workspace>/tools/flatcc: without it the
+# module reruns its BUILD_ALWAYS flatcc_ep external project (a full host
+# cmake pass) on EVERY firmware build, for a binary these builds never use.
+echo "==> Host flatcc (prebuilt once, reused by every build)"
+"${REPO_DIR}/scripts/install_flatcc.sh"
+
 if [ "${ET_DO_BLOBS:-0}" = "1" ]; then
   echo "==> WiFi blobs for the Pico 2 W (optional, only for WiFi features)"
   west blobs fetch hal_infineon || echo "    (skipped: not fatal for this demo)"
